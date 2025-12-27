@@ -467,3 +467,159 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
+
+
+
+# ===== VOICE TRANSCRIPTION ENDPOINT =====
+
+@router.post("/voice/transcribe")
+async def transcribe_voice(
+    audio: bytes = Body(..., media_type="audio/*"),
+    authorization: str = Header(None)
+):
+    """
+    Transcribe voice input to text using GROQ Whisper.
+    
+    Accepts audio file and returns transcribed text.
+    """
+    try:
+        from groq import Groq
+        import tempfile
+        import os
+        
+        client = Groq(api_key=settings.GROQ_API_KEY)
+        
+        # Save audio to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".m4a") as tmp:
+            tmp.write(audio)
+            tmp_path = tmp.name
+        
+        try:
+            with open(tmp_path, "rb") as file:
+                transcription = client.audio.transcriptions.create(
+                    file=(tmp_path, file.read()),
+                    model="whisper-large-v3-turbo",
+                    temperature=0,
+                    response_format="verbose_json",
+                )
+            
+            return {
+                "success": True,
+                "text": transcription.text,
+                "language": getattr(transcription, 'language', 'unknown')
+            }
+        finally:
+            os.unlink(tmp_path)
+            
+    except Exception as e:
+        logger.error(f"Voice transcription error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+
+
+@router.post("/voice/transcribe-file")
+async def transcribe_voice_file(
+    file: bytes = Body(...),
+    filename: str = Body("audio.m4a"),
+    authorization: str = Header(None)
+):
+    """
+    Transcribe voice input from base64 encoded audio.
+    """
+    try:
+        from groq import Groq
+        import tempfile
+        import os
+        import base64
+        
+        client = Groq(api_key=settings.GROQ_API_KEY)
+        
+        # Decode base64 if needed
+        try:
+            audio_data = base64.b64decode(file) if isinstance(file, str) else file
+        except:
+            audio_data = file
+        
+        # Get file extension
+        ext = filename.split('.')[-1] if '.' in filename else 'm4a'
+        
+        # Save audio to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+            tmp.write(audio_data)
+            tmp_path = tmp.name
+        
+        try:
+            with open(tmp_path, "rb") as f:
+                transcription = client.audio.transcriptions.create(
+                    file=(filename, f.read()),
+                    model="whisper-large-v3-turbo",
+                    temperature=0,
+                    response_format="verbose_json",
+                )
+            
+            return {
+                "success": True,
+                "text": transcription.text,
+                "language": getattr(transcription, 'language', 'unknown')
+            }
+        finally:
+            os.unlink(tmp_path)
+            
+    except Exception as e:
+        logger.error(f"Voice transcription error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+
+
+# ===== USER PROFILE UPDATE ENDPOINT =====
+
+@router.put("/auth/profile")
+async def update_profile(
+    authorization: str = Header(None),
+    language: str = Body(None),
+    latitude: float = Body(None),
+    longitude: float = Body(None),
+    farm_location: str = Body(None),
+):
+    """
+    Update user profile settings including language and location.
+    """
+    try:
+        if not authorization:
+            raise HTTPException(status_code=401, detail="Missing authorization header")
+        
+        token = extract_token_from_header(authorization)
+        if not token:
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+        
+        payload = verify_token(token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+        
+        user_id = payload.get("user_id")
+        
+        # Build update document
+        update_doc = {"updated_at": datetime.utcnow()}
+        if language is not None:
+            update_doc["language"] = language
+        if latitude is not None:
+            update_doc["latitude"] = latitude
+        if longitude is not None:
+            update_doc["longitude"] = longitude
+        if farm_location is not None:
+            update_doc["farm_location"] = farm_location
+        
+        result = await db.db.users.update_one(
+            {"user_id": user_id},
+            {"$set": update_doc}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Profile updated for user {user_id}")
+            return {"success": True, "message": "Profile updated successfully"}
+        else:
+            return {"success": True, "message": "No changes made"}
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Profile update error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
