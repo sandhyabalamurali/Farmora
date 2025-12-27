@@ -4,4 +4,7 @@ __pycache__/
 
 # Ignore compiled Python files
 *.py[cod]
-/.env
+/.env-e 
+# Environment files
+*.env
+*.env.*
