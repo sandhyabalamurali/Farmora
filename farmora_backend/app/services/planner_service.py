@@ -73,10 +73,11 @@ async def update_task_status(task_id: str, status: str) -> bool:
         if result.modified_count > 0:
             logger.info(f"Task {task_id} status updated to {status}")
             return True
-        raise Exception(f"Task {task_id} not found or not modified")
+        logger.warning(f"Task {task_id} not found or already has status {status}")
+        return False
     except Exception as e:
         logger.error(f"Error updating task: {e}")
-        raise
+        return False
 
 
 async def generate_planner_suggestions(user_id: str, user_message: str, 
