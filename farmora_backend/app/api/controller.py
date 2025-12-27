@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status, Header, Body
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status, Header, Body, UploadFile, File, Request
 from fastapi.encoders import jsonable_encoder
 from farmora_backend.app.schemas.chat_schema import (
     ChatInput, ChatResponse, DiseaseDetectionResult, MarketNews, DashboardData,
@@ -218,10 +218,12 @@ async def chat_endpoint(payload: ChatInput, background_tasks: BackgroundTasks):
         planner_suggestions = []
         for task in final_state.get("planner_data", []):
             planner_suggestions.append({
+                "task_id": task.get("task_id"),  # Ensure task_id is included
                 "task_name": task.get("task_name", ""),
                 "date": task.get("date", ""),
                 "reason": task.get("reason", ""),
                 "priority": task.get("priority", "medium"),
+                "description": task.get("description", ""),
                 "requires_confirmation": task.get("requires_confirmation", True),
                 "status": task.get("status", "pending")
             })
@@ -294,7 +296,7 @@ async def mark_task_complete(task_id: str, payload: TaskCompleteRequest = Body(.
     """
     try:
         from farmora_backend.app.services.planner_service import update_task_status, get_user_tasks
-        import google.generativeai as genai
+        import google.genai as genai
         
         # Mark task as completed
         success = await update_task_status(task_id, "completed")
@@ -313,12 +315,13 @@ Message should:
 
 Use appropriate emojis."""
             
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            import google.genai as genai
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
             
-            response = model.generate_content(
-                f"You are an encouraging agricultural assistant. Celebrate farmer achievements warmly and briefly.\n\n{completion_prompt}",
-                generation_config=genai.types.GenerationConfig(
+            response = client.models.generate_content(
+                model=settings.GEMINI_MODEL,
+                contents=f"You are an encouraging agricultural assistant. Celebrate farmer achievements warmly and briefly.\n\n{completion_prompt}",
+                config=genai.types.GenerateContentConfig(
                     temperature=0.8,
                     max_output_tokens=300,
                 )
@@ -389,26 +392,18 @@ async def get_user_tasks(user_id: str, status: str = None):
 async def get_timeline(user_id: str):
     """
     Timeline endpoint: returns confirmed tasks formatted for timeline UI.
+    Uses cached timeline from DB for better performance.
     """
     try:
-        from farmora_backend.app.services.planner_service import get_user_tasks
+        from farmora_backend.app.services.planner_service import get_cached_timeline
 
-        tasks = await get_user_tasks(user_id, status="confirmed")
-
-        # Format tasks for timeline frontend
-        timeline_items = [
-            {
-                "id": t.get("task_id"),
-                "title": t.get("task_name"),
-                "date": t.get("scheduled_date"),
-                "description": t.get("description", ""),
-                "priority": t.get("priority", "medium"),
-                "status": t.get("status", "confirmed"),
-            }
-            for t in tasks
-        ]
-
-        return {"user_id": user_id, "timeline": timeline_items}
+        timeline_data = await get_cached_timeline(user_id)
+        
+        return {
+            "user_id": user_id, 
+            "timeline": timeline_data.get("timeline", []),
+            "last_updated": timeline_data.get("last_updated")
+        }
 
     except Exception as e:
         logger.error(f"Error fetching timeline for {user_id}: {e}", exc_info=True)
@@ -425,10 +420,11 @@ async def get_market_data(user_id: str):
         # Get user profile for context
         user_profile = await get_user_profile(user_id)
         
-        # Get dashboard context which includes market news
+        # Get dashboard context which includes market news and weather
         dashboard_context = await get_dashboard_context(user_id, user_profile)
         
         market_news = dashboard_context.get("market_news", [])
+        weather_data = dashboard_context.get("weather", {})
         
         # Format market data for frontend
         market_items = []
@@ -441,6 +437,111 @@ async def get_market_data(user_id: str):
                 "source": news.get("source", ""),
                 "url": news.get("url", ""),
                 "published_at": news.get("published_at", ""),
+                "image_url": news.get("image_url", ""),
+                "type": "news"
+            })
+        
+        # Format weather insights
+        weather_insights = "Weather data unavailable"
+        if weather_data and not weather_data.get("error"):
+            temp = weather_data.get("temperature", "N/A")
+            desc = weather_data.get("description", "N/A")
+            ai_insights = weather_data.get("ai_insights", "")
+            weather_insights = f"🌡️ {temp}°C, {desc}. {ai_insights}" if ai_insights else f"🌡️ {temp}°C, {desc}"
+        
+        return {
+            "user_id": user_id,
+            "market_data": market_items,
+            "weather": weather_insights,
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching market data for {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch market data")
+
+
+@router.get("/weather/{user_id}")
+async def get_weather_data(user_id: str, language: str = "en"):
+    """
+    Weather data endpoint: returns weather insights translated to user's language.
+    """
+    try:
+        from farmora_backend.app.services.dashboard_service import generate_weather_insights
+        
+        # Get user profile for location and context
+        user_profile = await get_user_profile(user_id)
+        
+        # Generate weather insights
+        weather_data = await generate_weather_insights(user_profile, language)
+        
+        # Format response
+        weather_insights = "Weather data unavailable"
+        weather_structured = None
+        
+        if weather_data and not weather_data.get("error"):
+            temp = weather_data.get("temperature", "N/A")
+            desc = weather_data.get("description", "N/A")
+            ai_insights = weather_data.get("ai_insights", "")
+            weather_insights = f"🌡️ {temp}°C, {desc}.\n\n{ai_insights}" if ai_insights else f"🌡️ {temp}°C, {desc}"
+            
+            weather_structured = {
+                "temperature": weather_data.get("temperature"),
+                "humidity": weather_data.get("humidity"),
+                "wind_speed": f"{weather_data.get('wind_speed', 0)} m/s",
+                "visibility": f"{weather_data.get('visibility', 10000) / 1000:.1f} km",
+                "description": desc
+            }
+        
+        return {
+            "user_id": user_id,
+            "weather": weather_insights,
+            "weather_structured": weather_structured,
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching weather for {user_id}: {e}", exc_info=True)
+        return {
+            "user_id": user_id,
+            "weather": "Weather data unavailable. Please check your location settings.",
+            "weather_structured": None,
+            "last_updated": datetime.utcnow().isoformat()
+        }
+
+
+@router.get("/news/{user_id}")
+async def get_news_data(user_id: str, language: str = "en", refresh: bool = False):
+    """
+    News data endpoint: returns market news translated to user's language.
+    If refresh=True, fetches fresh data from the news API.
+    """
+    try:
+        from farmora_backend.app.services.dashboard_service import get_translated_news, fetch_and_process_market_data
+        
+        # If refresh requested, fetch fresh data from API
+        if refresh:
+            logger.info(f"🔄 Refreshing news data for user {user_id}")
+            await fetch_and_process_market_data()
+        
+        # Get user profile
+        user_profile = await get_user_profile(user_id)
+        
+        # Get news with translation
+        market_news = await get_translated_news(language)
+        
+        # Format market data for frontend
+        market_items = []
+        for news in market_news:
+            market_items.append({
+                "id": news.get("url", "")[:50],
+                "title": news.get("title", "Market Update"),
+                "description": news.get("description", ""),
+                "summary": news.get("summary", ""),
+                "source": news.get("source", ""),
+                "url": news.get("url", ""),
+                "published_at": news.get("published_at", ""),
+                "image_url": news.get("image_url", ""),
                 "type": "news"
             })
         
@@ -451,8 +552,8 @@ async def get_market_data(user_id: str):
         }
         
     except Exception as e:
-        logger.error(f"Error fetching market data for {user_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch market data")
+        logger.error(f"Error fetching news for {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch news data")
 
 
 @router.get("/health")
@@ -486,28 +587,72 @@ async def transcribe_voice(
         import os
         
         client = Groq(api_key=settings.GROQ_API_KEY)
-        
+
         # Save audio to temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".m4a") as tmp:
             tmp.write(audio)
             tmp_path = tmp.name
-        
+
+        # Try to get user language for optional post-translation
+        user_lang = None
         try:
-            with open(tmp_path, "rb") as file:
+            if authorization:
+                token = extract_token_from_header(authorization)
+                if token:
+                    payload = verify_token(token)
+                    if payload:
+                        user_profile = await get_user_profile(payload.get("user_id"))
+                        user_lang = user_profile.get("language") if user_profile else None
+
+            try:
+                # send as (filename, bytes) tuple which matches Groq example
+                with open(tmp_path, "rb") as file_obj:
+                    file_bytes = file_obj.read()
                 transcription = client.audio.transcriptions.create(
-                    file=(tmp_path, file.read()),
-                    model="whisper-large-v3-turbo",
+                    file=("audio.m4a", file_bytes),
+                    model=settings.WHISPER_MODEL,
                     temperature=0,
                     response_format="verbose_json",
                 )
-            
-            return {
-                "success": True,
-                "text": transcription.text,
-                "language": getattr(transcription, 'language', 'unknown')
-            }
-        finally:
-            os.unlink(tmp_path)
+
+                text = getattr(transcription, "text", None) or transcription.get("text") if isinstance(transcription, dict) else None
+                detected_lang = getattr(transcription, 'language', None) or (transcription.get('language') if isinstance(transcription, dict) else None)
+
+                # If user language is set and differs from detected language, translate using Gemini
+                if user_lang and detected_lang and user_lang.lower() != detected_lang.lower() and text:
+                    try:
+                        import google.genai as genai
+                        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                        prompt = f"Translate the following text to {user_lang} preserving meaning and tone. Return only the translated text.\n\nText:\n{text}"
+                        resp = client.models.generate_content(
+                            model=settings.GEMINI_MODEL,
+                            contents=prompt,
+                            config=genai.types.GenerateContentConfig(
+                                temperature=0.2,
+                                max_output_tokens=1000,
+                            )
+                        )
+                        translated = resp.text
+                        logger.info(f"Voice transcription translated to {user_lang}")
+                        text = translated
+                    except Exception as te:
+                        logger.error(f"Translation failed: {te}", exc_info=True)
+
+                return {
+                    "success": True,
+                    "text": text,
+                    "language": detected_lang or getattr(transcription, 'language', 'unknown')
+                }
+            finally:
+                os.unlink(tmp_path)
+        except Exception:
+            # Ensure temp file is removed on any failure
+            try:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except Exception:
+                pass
+            raise
             
     except Exception as e:
         logger.error(f"Voice transcription error: {e}", exc_info=True)
@@ -516,12 +661,12 @@ async def transcribe_voice(
 
 @router.post("/voice/transcribe-file")
 async def transcribe_voice_file(
-    file: bytes = Body(...),
-    filename: str = Body("audio.m4a"),
+    request: Request,
     authorization: str = Header(None)
 ):
     """
-    Transcribe voice input from base64 encoded audio.
+    Transcribe voice input from base64 encoded audio in JSON body.
+    Frontend sends: {"file": "<base64>", "filename": "audio.webm"}
     """
     try:
         from groq import Groq
@@ -530,37 +675,88 @@ async def transcribe_voice_file(
         import base64
         
         client = Groq(api_key=settings.GROQ_API_KEY)
-        
-        # Decode base64 if needed
+
+        # Parse JSON body
+        body = None
         try:
-            audio_data = base64.b64decode(file) if isinstance(file, str) else file
-        except:
-            audio_data = file
-        
-        # Get file extension
-        ext = filename.split('.')[-1] if '.' in filename else 'm4a'
-        
-        # Save audio to temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
-            tmp.write(audio_data)
-            tmp_path = tmp.name
-        
-        try:
-            with open(tmp_path, "rb") as f:
-                transcription = client.audio.transcriptions.create(
-                    file=(filename, f.read()),
-                    model="whisper-large-v3-turbo",
-                    temperature=0,
-                    response_format="verbose_json",
-                )
+            body = await request.json()
+            base64_audio = body.get("file")
+            filename = body.get("filename", "audio.webm")
             
+            if not base64_audio:
+                raise HTTPException(status_code=400, detail="No audio data in request body")
+            
+            # Decode base64 to bytes
+            file_bytes = base64.b64decode(base64_audio)
+            logger.info(f"Received base64 audio: {filename} ({len(file_bytes)} bytes)")
+        except ValueError as e:
+            logger.error(f"Invalid base64 data: {e}", exc_info=True)
+            raise HTTPException(status_code=400, detail="Invalid base64 encoded audio data")
+        except Exception as e:
+            logger.error(f"Failed parsing request body: {e}", exc_info=True)
+            raise HTTPException(status_code=400, detail="Invalid request body")
+
+        # Save to temp file (optional) — we'll send bytes directly to SDK
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1] or ".m4a") as tmp:
+            tmp.write(file_bytes)
+            tmp_path = tmp.name
+
+        # Try to get user language for optional post-translation
+        # First check if language is provided in request body, then fall back to profile
+        user_lang = body.get("language") if body else None
+        
+        if not user_lang and authorization:
+            try:
+                token = extract_token_from_header(authorization)
+                if token:
+                    payload = verify_token(token)
+                    if payload:
+                        user_profile = await get_user_profile(payload.get("user_id"))
+                        user_lang = user_profile.get("language") if user_profile else None
+            except Exception as e:
+                logger.debug(f"Could not get language from profile: {e}")
+
+        try:
+            transcription = client.audio.transcriptions.create(
+                file=(filename, file_bytes),
+                model=settings.WHISPER_MODEL,
+                temperature=0,
+                response_format="verbose_json",
+            )
+
+            text = getattr(transcription, "text", None) or (transcription.get("text") if isinstance(transcription, dict) else None)
+            detected_lang = getattr(transcription, 'language', None) or (transcription.get('language') if isinstance(transcription, dict) else None)
+
+            # If user language is set and differs from detected language, translate using Gemini
+            if user_lang and detected_lang and user_lang.lower() != detected_lang.lower() and text:
+                try:
+                    import google.genai as genai
+                    client_genai = genai.Client(api_key=settings.GEMINI_API_KEY)
+                    prompt = f"Translate the following text to {user_lang} preserving meaning and tone. Return only the translated text.\n\nText:\n{text}"
+                    resp = client_genai.models.generate_content(
+                        model=settings.GEMINI_MODEL,
+                        contents=prompt,
+                        config=genai.types.GenerateContentConfig(
+                            temperature=0.2,
+                            max_output_tokens=1000,
+                        )
+                    )
+                    translated = resp.text
+                    logger.info(f"Voice transcription translated to {user_lang}")
+                    text = translated
+                except Exception as te:
+                    logger.error(f"Translation failed: {te}", exc_info=True)
+
             return {
                 "success": True,
-                "text": transcription.text,
-                "language": getattr(transcription, 'language', 'unknown')
+                "text": text,
+                "language": detected_lang or getattr(transcription, 'language', 'unknown')
             }
         finally:
-            os.unlink(tmp_path)
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
             
     except Exception as e:
         logger.error(f"Voice transcription error: {e}", exc_info=True)

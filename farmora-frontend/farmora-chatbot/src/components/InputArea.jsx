@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Send, Mic, MicOff, Paperclip, MessageSquare, Loader, Square } from 'lucide-react';
+import { t } from '../i18n';
 
 const InputArea = ({ 
   inputText, 
@@ -9,7 +10,8 @@ const InputArea = ({
   handleFileSelect,
   sidebarOpen,
   loading = false,
-  onVoiceTranscription
+  onVoiceTranscription,
+  currentLanguage = 'en'
 }) => {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -97,9 +99,9 @@ const InputArea = ({
     } catch (error) {
       console.error('Error accessing microphone:', error);
       if (error.name === 'NotAllowedError') {
-        alert('Microphone access denied. Please allow microphone access in your browser settings.');
+        alert(t(currentLanguage, 'microphone_denied'));
       } else {
-        alert('Could not access microphone. Please check your device settings.');
+        alert(t(currentLanguage, 'microphone_error'));
       }
     }
   };
@@ -120,10 +122,10 @@ const InputArea = ({
   };
 
   return (
-    <div className="">
+    <div className="bg-gray-900/80 backdrop-blur-sm border-t border-green-800/30">
       <div className={`mx-auto px-4 py-3 ${sidebarOpen ? 'max-w-3xl' : 'max-w-5xl'}`}>
         <div className="relative">
-          <div className={`relative flex items-center space-x-2 ${isRecording ? 'bg-red-900/30 border-red-500/50' : 'bg-gray-800/80 border-gray-700'} border rounded-2xl focus-within:border-green-500 min-h-[44px] px-3.5 py-1 transition-colors shadow-lg shadow-black/20`}>
+          <div className={`relative flex items-center space-x-2 ${isRecording ? 'bg-red-900/20 border-red-500/50' : 'bg-gray-800/60 border-green-700/30'} border rounded-xl focus-within:border-green-500 min-h-[44px] px-3 py-1 transition-colors`}>
             <input
               type="file"
               ref={fileInputRef}
@@ -134,23 +136,23 @@ const InputArea = ({
               disabled={loading || isRecording}
             />
             
-            <div className="shrink-0 p-1.5 rounded-xl flex items-center justify-center">
+            <div className="shrink-0 p-1.5 rounded-lg flex items-center justify-center">
               <MessageSquare className="w-4 h-4 text-green-400" />
             </div>
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="shrink-0 p-1.5 hover:bg-gray-700 rounded-xl transition-colors flex items-center justify-center disabled:opacity-50"
-              title="Attach image for disease detection"
+              className="shrink-0 p-1.5 hover:bg-green-900/30 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+              title={t(currentLanguage, 'upload_image')}
               disabled={loading || isRecording}
             >
-              <Paperclip className="w-4 h-4 text-green-300" />
+              <Paperclip className="w-4 h-4 text-green-400" />
             </button>
 
             {isRecording ? (
               <div className="flex-1 flex items-center gap-3 py-2 px-3">
-                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                <span className="text-red-400 font-medium">Recording... {formatTime(recordingTime)}</span>
+                <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-red-400 font-medium text-sm">{t(currentLanguage, 'recording')} {formatTime(recordingTime)}</span>
               </div>
             ) : (
               <textarea
@@ -158,9 +160,9 @@ const InputArea = ({
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about crop diseases, tasks, weather... or use voice 🎤"
+                placeholder={t(currentLanguage, 'ask_placeholder')}
                 rows="1"
-                className="flex-1 py-2 px-3 bg-transparent border-none focus:outline-none resize-none max-h-40 text-gray-100 placeholder:text-gray-500 text-base disabled:opacity-50"
+                className="flex-1 py-2 px-2 bg-transparent border-none focus:outline-none resize-none max-h-40 text-gray-100 placeholder:text-gray-500 text-sm disabled:opacity-50"
                 disabled={loading || isTranscribing}
               />
             )}
@@ -168,32 +170,32 @@ const InputArea = ({
             {loading || isTranscribing ? (
               <button
                 disabled
-                className="shrink-0 p-1.5 bg-green-600 rounded-xl flex items-center justify-center animate-pulse"
-                title={isTranscribing ? 'Transcribing...' : 'Processing...'}
+                className="shrink-0 p-1.5 bg-gradient-to-r from-green-600 to-emerald-600 rounded-lg flex items-center justify-center"
+                title={isTranscribing ? t(currentLanguage, 'transcribing') : t(currentLanguage, 'processing')}
               >
                 <Loader className="w-4 h-4 text-white animate-spin" />
               </button>
             ) : isRecording ? (
               <button
                 onClick={stopRecording}
-                className="shrink-0 p-2 bg-red-600 hover:bg-red-500 rounded-xl transition-colors flex items-center justify-center"
-                title="Stop recording"
+                className="shrink-0 p-2 bg-red-600 hover:bg-red-500 rounded-lg transition-colors flex items-center justify-center"
+                title={t(currentLanguage, 'stop_recording')}
               >
                 <Square className="w-4 h-4 text-white" />
               </button>
             ) : !inputText.trim() ? (
               <button
                 onClick={handleMicButtonClick}
-                className="shrink-0 p-1.5 hover:bg-green-800/50 rounded-xl transition-colors flex items-center justify-center"
-                title="Voice input - Click to start recording"
+                className="shrink-0 p-1.5 hover:bg-green-900/30 rounded-lg transition-colors flex items-center justify-center"
+                title={t(currentLanguage, 'start_voice')}
               >
-                <Mic className="w-4 h-4 text-green-300" />
+                <Mic className="w-4 h-4 text-green-400" />
               </button>
             ) : (
               <button
                 onClick={handleSendMessage}
-                className="shrink-0 p-1.5 bg-green-600 hover:bg-green-500 rounded-xl transition-colors flex items-center justify-center disabled:opacity-50"
-                title="Send message (Shift+Enter for new line)"
+                className="shrink-0 p-1.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-lg transition-all flex items-center justify-center disabled:opacity-50 shadow-lg shadow-green-900/30"
+                title={t(currentLanguage, 'send_message')}
                 disabled={loading}
               >
                 <Send className="w-4 h-4 text-white" />
@@ -201,8 +203,8 @@ const InputArea = ({
             )}
           </div>
         </div>
-        <div className="text-xs text-center text-gray-500 mt-3">
-          💡 Upload crop images for disease detection • Ask about farm tasks • Get weather & market updates • 🎤 Voice input available
+        <div className="text-xs text-center text-gray-500 mt-2">
+          {t(currentLanguage, 'tip')} {t(currentLanguage, 'upload_image')} • {t(currentLanguage, 'ask_about_tasks')} • 🎤 {t(currentLanguage, 'voice_available')}
         </div>
       </div>
     </div>

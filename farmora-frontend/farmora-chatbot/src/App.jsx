@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Menu, LogOut, Globe } from 'lucide-react';
 import api from './services/api';
 import Sidebar from './components/Sidebar';
@@ -9,6 +9,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import Timeline from './components/Timeline';
 import Dashboard from './components/Dashboard';
+import LandingPage from './components/LandingPage';
 import './App.css';
 
 const LANGUAGES = [
@@ -28,15 +29,47 @@ function App() {
   const [authState, setAuthState] = useState('loading');
   const [user, setUser] = useState(null);
   const [currentTab, setCurrentTab] = useState('chat');
-  const [timelineItems, setTimelineItems] = useState([]);
+  const timelineRef = useRef(null); // Ref for Timeline component
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingTasks, setPendingTasks] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState(null);
-  const [currentLanguage, setCurrentLanguage] = useState('en');
+  // Language defaults to user's preferred language (set after login)
+  const [currentLanguage, setCurrentLanguage] = useState(null);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  
+  // Chat history state
+  const [chatHistory, setChatHistory] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
+
+  // Get storage key for current user's chat history
+  const getChatHistoryKey = (userId) => `farmora_chat_history_${userId}`;
+
+  // Load chat history from localStorage when user changes
+  useEffect(() => {
+    if (user?.user_id) {
+      const savedHistory = localStorage.getItem(getChatHistoryKey(user.user_id));
+      if (savedHistory) {
+        try {
+          setChatHistory(JSON.parse(savedHistory));
+        } catch (e) {
+          console.error('Failed to load chat history:', e);
+          setChatHistory([]);
+        }
+      } else {
+        setChatHistory([]);
+      }
+    }
+  }, [user?.user_id]);
+
+  // Save chat history to localStorage whenever it changes
+  useEffect(() => {
+    if (user?.user_id && chatHistory.length > 0) {
+      localStorage.setItem(getChatHistoryKey(user.user_id), JSON.stringify(chatHistory));
+    }
+  }, [chatHistory, user?.user_id]);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -49,7 +82,7 @@ function App() {
       setCurrentLanguage(userData.language || 'en');
       setAuthState('authenticated');
     } else {
-      setAuthState('login');
+      setAuthState('landing');
     }
   }, []);
 
@@ -158,7 +191,7 @@ function App() {
 
   const handleVoiceTranscription = async (audioBlob) => {
     try {
-      const result = await api.transcribeVoice(audioBlob, 'recording.webm');
+      const result = await api.transcribeVoice(audioBlob, 'recording.webm', currentLanguage);
       if (result.success && result.text) {
         setInputText(result.text);
       } else {
@@ -265,12 +298,12 @@ function App() {
 
       setMessages(prev => [...prev, confirmMessage]);
       
-      // Refresh timeline after confirmation
-      try {
-        const timeline = await api.getTimeline(user.user_id);
-        setTimelineItems(timeline.timeline || []);
-      } catch (e) {
-        console.error('Failed to refresh timeline', e);
+      // Trigger timeline refresh if component is mounted and task was confirmed
+      if (confirmed && timelineRef.current) {
+        // Small delay to allow backend to process
+        setTimeout(() => {
+          timelineRef.current?.refresh();
+        }, 500);
       }
     } catch (error) {
       alert(`Confirmation failed: ${error.message}`);
@@ -278,11 +311,131 @@ function App() {
   };
 
   const startNewChat = () => {
+    // Save current chat to history if it has messages
+    if (messages.length > 0) {
+      const chatName = generateChatName(messages);
+      const newChatEntry = {
+        id: activeChatId || Date.now(),
+        name: chatName,
+        messages: messages,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Update existing chat or add new one
+      setChatHistory(prev => {
+        const existingIndex = prev.findIndex(c => c.id === activeChatId);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = newChatEntry;
+          return updated;
+        }
+        // Keep only last 10 chats
+        const newHistory = [newChatEntry, ...prev].slice(0, 10);
+        return newHistory;
+      });
+    }
+    
+    // Clear current chat
     setMessages([]);
     setPendingTasks([]);
+    setActiveChatId(Date.now());
+  };
+
+  // Generate a name for the chat based on its content
+  const generateChatName = (msgs) => {
+    // Find the first user message
+    const firstUserMsg = msgs.find(m => m.sender === 'user');
+    if (firstUserMsg) {
+      // Truncate to 30 chars
+      const text = firstUserMsg.text || 'New Chat';
+      return text.length > 30 ? text.substring(0, 30) + '...' : text;
+    }
+    return `Chat ${new Date().toLocaleDateString()}`;
+  };
+
+  // Load a previous chat from history
+  const loadChat = (chatId) => {
+    // Save current chat first if it has messages
+    if (messages.length > 0 && activeChatId !== chatId) {
+      const chatName = generateChatName(messages);
+      const currentChat = {
+        id: activeChatId || Date.now(),
+        name: chatName,
+        messages: messages,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      setChatHistory(prev => {
+        const existingIndex = prev.findIndex(c => c.id === activeChatId);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = currentChat;
+          return updated;
+        }
+        return [currentChat, ...prev].slice(0, 10);
+      });
+    }
+    
+    // Load the selected chat
+    const selectedChat = chatHistory.find(c => c.id === chatId);
+    if (selectedChat) {
+      setMessages(selectedChat.messages);
+      setActiveChatId(chatId);
+      setPendingTasks([]);
+    }
+  };
+
+  // Delete a chat from history
+  const deleteChat = (chatId) => {
+    setChatHistory(prev => {
+      const newHistory = prev.filter(c => c.id !== chatId);
+      // Update localStorage immediately
+      if (user?.user_id) {
+        if (newHistory.length > 0) {
+          localStorage.setItem(getChatHistoryKey(user.user_id), JSON.stringify(newHistory));
+        } else {
+          localStorage.removeItem(getChatHistoryKey(user.user_id));
+        }
+      }
+      return newHistory;
+    });
+    if (activeChatId === chatId) {
+      setMessages([]);
+      setActiveChatId(null);
+    }
+  };
+
+  // Get available languages (preferred language first, then English)
+  const getAvailableLanguages = () => {
+    const preferredLang = user?.language || 'en';
+    // If preferred is English, just return English
+    if (preferredLang === 'en') {
+      return LANGUAGES.filter(l => l.code === 'en');
+    }
+    // Otherwise return preferred language first, then English
+    const preferred = LANGUAGES.find(l => l.code === preferredLang);
+    const english = LANGUAGES.find(l => l.code === 'en');
+    return [preferred, english].filter(Boolean);
+  };
+
+  // Get current language display name
+  const getCurrentLanguageName = () => {
+    const lang = LANGUAGES.find(l => l.code === (currentLanguage || user?.language || 'en'));
+    return lang?.name || 'English';
   };
 
   // Auth screens
+  if (authState === 'landing') {
+    return (
+      <LandingPage 
+        onLogin={() => setAuthState('login')}
+        onSignup={() => setAuthState('signup')}
+      />
+    );
+  }
+
   if (authState === 'login') {
     return (
       <Login
@@ -301,7 +454,9 @@ function App() {
     );
   }
 
-  const currentLangName = LANGUAGES.find(l => l.code === currentLanguage)?.name || 'English';
+  // Get the effective language (use preferred if currentLanguage not set)
+  const effectiveLanguage = currentLanguage || user?.language || 'en';
+  const currentLangName = LANGUAGES.find(l => l.code === effectiveLanguage)?.name || 'English';
 
   // Main app
   return (
@@ -313,91 +468,104 @@ function App() {
         user={user}
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
+        currentLanguage={effectiveLanguage}
+        chatHistory={chatHistory}
+        activeChatId={activeChatId}
+        onLoadChat={loadChat}
+        onDeleteChat={deleteChat}
       />
 
       <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <div className="h-16 bg-gradient-to-r from-green-900/40 to-emerald-900/40 border-b border-green-800/30 backdrop-blur-sm flex items-center justify-between px-6 shadow-lg">
-          <div className="flex items-center gap-4">
+        {/* Top Bar - Premium Design */}
+        <div className="h-14 bg-gray-900/80 backdrop-blur-sm border-b border-green-800/30 flex items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-green-800/40 rounded-lg transition-all duration-200 border border-green-700/30"
+              className="p-2 hover:bg-green-900/30 rounded-lg transition-colors"
               data-testid="toggle-sidebar-btn"
             >
-              <Menu className="w-5 h-5 text-green-300" />
+              <Menu className="w-5 h-5 text-green-400" />
             </button>
             <div className="flex items-center gap-2">
-              <span className="text-3xl">🌾</span>
-              <span className="font-bold text-3xl text-transparent bg-gradient-to-r from-green-400 via-emerald-400 to-green-500 bg-clip-text drop-shadow-lg">
+              <span className="text-xl">🌾</span>
+              <span className="font-bold text-lg text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text">
                 FarMora
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Language Switcher */}
             <div className="relative">
               <button
                 onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                className="flex items-center gap-2 px-3 py-2 bg-green-900/30 hover:bg-green-800/40 rounded-lg border border-green-700/30 transition-all"
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 hover:bg-green-900/40 rounded-lg border border-green-700/30 transition-colors"
                 data-testid="language-switcher-btn"
               >
                 <Globe className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-green-300">{currentLangName}</span>
+                <span className="text-sm text-green-300 hidden sm:inline">{currentLangName}</span>
               </button>
               
               {showLanguageDropdown && (
                 <>
-                  {/* Backdrop to close dropdown when clicking outside */}
+                  {/* Backdrop */}
                   <div 
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowLanguageDropdown(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-green-700/30 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
-                    {LANGUAGES.map(lang => (
-                      <button
-                        key={lang.code}
-                        onClick={() => handleLanguageChange(lang.code)}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-green-800/40 transition-colors ${
-                          currentLanguage === lang.code 
-                            ? 'bg-green-700/30 text-green-300' 
-                            : 'text-gray-300'
-                        }`}
-                      >
-                        {lang.name}
-                      </button>
-                    ))}
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-900/95 backdrop-blur-sm border border-green-700/30 rounded-lg shadow-xl shadow-green-900/20 z-50 overflow-hidden">
+                    <div className="p-1">
+                      {getAvailableLanguages().map(lang => (
+                        <button
+                          key={lang.code}
+                          onClick={() => handleLanguageChange(lang.code)}
+                          className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
+                            effectiveLanguage === lang.code 
+                              ? 'bg-green-500/20 text-green-300' 
+                              : 'text-gray-300 hover:bg-green-900/30'
+                          }`}
+                        >
+                          <span>{lang.name}</span>
+                          {effectiveLanguage === lang.code && (
+                            <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
             </div>
 
-            <div className="flex items-center gap-2 px-3 py-2 bg-green-900/30 rounded-lg border border-green-700/30">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-sm text-green-300 font-medium">{user?.name}</span>
+            {/* User Name */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 rounded-lg border border-green-700/30">
+              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-sm text-green-300">{user?.name}</span>
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 border border-red-700/30 hover:border-red-600/50"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-green-700/30 hover:border-red-500/50"
               data-testid="logout-btn"
             >
               <LogOut className="w-4 h-4" />
-              Logout
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
 
         {/* Main Content Area */}
-        {currentTab === 'dashboard' && <Dashboard user={user} />}
-        {currentTab === 'timeline' && <Timeline user={user} items={timelineItems} />}
+        {currentTab === 'dashboard' && <Dashboard user={user} currentLanguage={effectiveLanguage} />}
+        {currentTab === 'timeline' && <Timeline ref={timelineRef} user={user} currentLanguage={effectiveLanguage} />}
         {currentTab === 'chat' && (
-          (messages.length === 0) ? (
+          (messages.length === 0 && !loading) ? (
             <WelcomeScreen />
           ) : (
             <ChatWindow
               messages={messages}
               pendingTasks={pendingTasks}
               onTaskConfirmation={handleTaskConfirmation}
+              currentLanguage={effectiveLanguage}
+              loading={loading}
             />
           )
         )}
@@ -413,6 +581,7 @@ function App() {
             sidebarOpen={sidebarOpen}
             loading={loading}
             onVoiceTranscription={handleVoiceTranscription}
+            currentLanguage={effectiveLanguage}
           />
         )}
       </div>

@@ -4,12 +4,17 @@ Handles authentication, token generation, and password verification.
 """
 
 import logging
+import warnings
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from passlib.context import CryptContext
 import bcrypt
 from farmora_backend.app.config import settings
+
+# Suppress passlib bcrypt version warning
+warnings.filterwarnings("ignore", message=".*error reading bcrypt version.*")
+logging.getLogger("passlib.handlers.bcrypt").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 

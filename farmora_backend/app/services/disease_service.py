@@ -2,22 +2,22 @@ import logging
 import json
 from typing import Dict, Any, Optional
 from farmora_backend.app.config import settings
-import google.generativeai as genai
+import google.genai as genai
 
 logger = logging.getLogger(__name__)
 
 # Configure Gemini
-genai.configure(api_key=settings.GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 def call_gemini(prompt: str, system_prompt: str = "", temperature: float = 0.5, max_tokens: int = 1500) -> str:
     """Helper function to call Gemini API."""
     full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
     
-    response = gemini_model.generate_content(
-        full_prompt,
-        generation_config=genai.types.GenerationConfig(
+    response = client.models.generate_content(
+        model=settings.GEMINI_MODEL,
+        contents=full_prompt,
+        config=genai.types.GenerateContentConfig(
             temperature=temperature,
             max_output_tokens=max_tokens,
         )
@@ -66,40 +66,89 @@ Respond with ONLY the crop name, nothing else."""
 async def analyze_paddy_disease(image_data: str, caption: str, location: str) -> Dict[str, Any]:
     """
     Specialized disease analysis for Paddy crops using Gemini.
+    Enhanced with comprehensive disease database and better prompting.
     """
     try:
-        paddy_prompt = f"""You are an expert PADDY/RICE crop pathologist.
-Analyze this paddy crop image for PADDY-SPECIFIC diseases:
-- Image: {caption or 'Paddy crop image'}
+        paddy_prompt = f"""You are an EXPERT PADDY/RICE crop pathologist with 20+ years experience in Indian agriculture.
+Analyze this paddy crop for PADDY-SPECIFIC diseases with HIGH PRECISION.
+
+Input:
+- Image/Description: {caption or 'Paddy crop image'}
 - Location: {location or 'India'}
 
-Known Paddy Diseases:
-1. Brown Spot - circular brown lesions on leaves
-2. Leaf Blast - spindle-shaped lesions, gray center
-3. Sheath Blight - irregular greenish-gray spots
-4. Bakanae (Foolish Seedling) - excessive height, thin stems
-5. Rice Hispa - white streaks, shot holes
-6. Stem Borer - holes in stems, dead hearts
+=== COMPREHENSIVE PADDY DISEASE DATABASE ===
 
-Provide analysis in JSON:
+**FUNGAL DISEASES:**
+1. Rice Blast (Magnaporthe oryzae)
+   - Symptoms: Spindle-shaped lesions, gray center with brown border, node blast causes stem breakage
+   - Severity indicators: Few spots = low, Many spots/node affected = high
+   
+2. Brown Spot (Bipolaris oryzae)
+   - Symptoms: Oval/circular brown lesions with gray center, yellow halo on leaves
+   - Common in nutrient-deficient fields
+   
+3. Sheath Blight (Rhizoctonia solani)
+   - Symptoms: Irregular greenish-gray water-soaked spots, spreading to upper parts
+   - Usually starts at water level on stems
+   
+4. Sheath Rot (Sarocladium oryzae)
+   - Symptoms: Brown discoloration on sheath, poor panicle emergence
+   
+5. False Smut (Ustilaginoidea virens)
+   - Symptoms: Orange/green spore balls replacing grains
+   
+6. Leaf Scald (Microdochium oryzae)
+   - Symptoms: Zonate lesions with alternating tan and brown bands
+
+**BACTERIAL DISEASES:**
+7. Bacterial Leaf Blight (Xanthomonas oryzae)
+   - Symptoms: Water-soaked streaks turning yellow to white, V-shaped lesions from leaf tips
+   
+8. Bacterial Leaf Streak
+   - Symptoms: Fine translucent streaks between veins
+
+**VIRAL DISEASES:**
+9. Rice Tungro Virus
+   - Symptoms: Yellow-orange discoloration, stunted growth, reduced tillering
+
+**PEST DAMAGE:**
+10. Stem Borer (Scirpophaga incertulas)
+    - Symptoms: Dead hearts in vegetative stage, white heads in flowering
+    
+11. Leaf Folder (Cnaphalocrocis medinalis)
+    - Symptoms: Longitudinally folded leaves with scraping
+    
+12. Brown Plant Hopper (Nilaparvata lugens)
+    - Symptoms: Hopper burn - circular patches of dried plants
+    
+13. Rice Hispa (Dicladispa armigera)
+    - Symptoms: White parallel streaks, shot holes in leaves
+
+14. Bakanae Disease (Fusarium moniliforme)
+    - Symptoms: Abnormally tall, thin, pale seedlings
+
+Analyze with EXPERT PRECISION and respond in valid JSON:
 {{
-    "disease_name": "identified paddy disease",
-    "confidence": 90,
+    "disease_name": "exact disease name from database above",
+    "confidence": 85,
     "severity": "low/medium/high",
-    "symptoms": "specific symptoms seen in paddy",
-    "remedy": "paddy-specific treatment with chemical names and doses",
-    "prevention_tips": ["tip 1 specific to paddy", "tip 2"],
-    "immediate_action": "urgent action specific to stage of crop",
-    "follow_up": "monitoring plan for paddy",
-    "stage_affected": "leaf/stem/grain",
-    "pesticide_recommended": "with dosage if needed"
-}}"""
-        
+    "symptoms": "specific symptoms observed matching database",
+    "remedy": "DETAILED treatment: Chemical name + dose (e.g., 'Tricyclazole 75WP @ 0.6g/L') AND organic alternative",
+    "prevention_tips": ["crop rotation", "resistant varieties", "water management tip", "field hygiene"],
+    "immediate_action": "most urgent action for THIS severity level",
+    "follow_up": "monitoring schedule with specific checkpoints",
+    "stage_affected": "seedling/tillering/flowering/grain filling",
+    "pesticide_recommended": "specific product with exact dosage per acre/hectare",
+    "economic_threshold": "spray if X% plants affected"
+}}
+
+IMPORTANT: Be SPECIFIC, not generic. Match symptoms to exact disease from database."""
+
         response = call_gemini(
             paddy_prompt,
-            "You are a paddy/rice crop specialist. Provide precise, practical remedies. Always return valid JSON only.",
-            temperature=0.4,
-            max_tokens=1500
+            "You are India's top paddy crop pathologist. Provide PRECISE diagnosis with EXACT chemical dosages. Always return valid JSON only, no markdown.",
+            temperature=0.3,  # Lower temperature for more consistent results
+            max_tokens=1800
         )
         
         response_text = response.strip()
@@ -141,57 +190,108 @@ Provide analysis in JSON:
 
 async def analyze_multimodal_disease(image_data: str, caption: str, user_context: Optional[Dict] = None) -> Dict[str, Any]:
     """
-    General disease analysis for non-paddy crops using Gemini.
+    Enhanced general disease analysis for all crops using Gemini.
+    Comprehensive prompt with expert-level analysis.
     """
     try:
         context_str = ""
+        crops_list = ""
         if user_context:
             crops = user_context.get("crops", [])
             location = user_context.get("farm_location", "")
-            context_str = f"User grows: {', '.join(crops) or 'mixed crops'}. Location: {location or 'unknown'}.\n"
+            crops_list = ', '.join(crops) if crops else 'mixed crops'
+            context_str = f"Farmer grows: {crops_list}. Location: {location or 'India'}.\n"
         
         if image_data:
             analysis_prompt = f"""{context_str}
-Analyze this crop image for diseases, pests, or health issues:
-- Image description: {caption or 'Crop image provided'}
+=== EXPERT CROP DISEASE ANALYSIS ===
 
-Provide a detailed analysis in JSON format:
+You are an EXPERT agricultural pathologist analyzing a crop image for diseases.
+
+Image Context: {caption or 'Crop image provided'}
+Farmer's Crops: {crops_list or 'Unknown'}
+
+=== COMMON CROP DISEASES TO CHECK ===
+
+**FUNGAL DISEASES:**
+- Powdery Mildew: White powdery coating on leaves/stems
+- Downy Mildew: Yellow/brown patches with fuzzy growth underneath
+- Anthracnose: Dark sunken lesions on fruits/leaves
+- Fusarium Wilt: Yellowing, wilting from base upward
+- Rust: Orange/brown pustules on leaves
+- Early Blight: Dark concentric ring spots
+- Late Blight: Water-soaked spots turning brown/black
+- Root Rot: Wilting despite adequate water, brown roots
+
+**BACTERIAL DISEASES:**
+- Bacterial Wilt: Sudden wilting, slimy stem when cut
+- Bacterial Spot: Small water-soaked spots turning brown
+- Soft Rot: Mushy, foul-smelling tissue
+
+**VIRAL DISEASES:**
+- Mosaic Virus: Mottled light/dark green patterns
+- Leaf Curl: Distorted, curled leaves
+- Yellowing Virus: Uniform yellowing, stunted growth
+
+**PEST DAMAGE:**
+- Aphids: Curled leaves, sticky residue, sooty mold
+- Caterpillars: Large irregular holes, frass present
+- Whitefly: Yellowing, sticky residue, flying white insects
+- Mites: Fine stippling, webbing, bronzing
+- Thrips: Silver streaks, distorted growth
+- Borers: Holes in stems/fruits, sawdust-like frass
+
+**NUTRIENT DEFICIENCIES:**
+- Nitrogen: Overall yellowing starting from older leaves
+- Phosphorus: Purple/red coloration, stunted growth
+- Potassium: Brown leaf edges, weak stems
+- Iron: Interveinal chlorosis on new leaves
+- Magnesium: Interveinal chlorosis on older leaves
+
+Analyze with EXPERT PRECISION:
 {{
-    "disease_name": "name of disease or condition",
+    "disease_name": "specific disease/condition identified",
     "confidence": 85,
     "severity": "low/medium/high",
-    "symptoms_observed": "detailed symptoms from image",
-    "immediate_action": "urgent step to take today",
-    "remedy": "detailed treatment plan with specific chemicals/methods",
-    "prevention_tips": ["tip 1", "tip 2", "tip 3"],
-    "follow_up": "what to do in 1 week",
-    "estimated_recovery_time": "days/weeks"
+    "symptoms_observed": "detailed symptoms matching the condition",
+    "immediate_action": "most urgent action to take TODAY",
+    "remedy": "DETAILED treatment with specific products and doses. Include both chemical and organic options.",
+    "prevention_tips": ["tip 1 - specific", "tip 2 - actionable", "tip 3 - practical"],
+    "follow_up": "specific monitoring plan with timeline",
+    "estimated_recovery_time": "X days/weeks with proper treatment",
+    "warning_signs": "when to seek professional help"
 }}
 
-Be specific, practical, and tailor advice to {context_str}. If healthy, say 'Healthy_Crop'."""
+If crop appears HEALTHY, respond with disease_name: "Healthy Crop" and provide maintenance tips.
+Be SPECIFIC and PRACTICAL - farmers need exact dosages and product names."""
         else:
             analysis_prompt = f"""{context_str}
-User describes their crop condition: "{caption}"
+=== TEXT-BASED CROP DIAGNOSIS ===
 
-Provide detailed agricultural analysis in JSON format:
+Farmer's Description: "{caption}"
+Crops Grown: {crops_list or 'Unknown'}
+
+Based on the description, analyze potential diseases/conditions and provide:
 {{
-    "disease_name": "identified condition or 'Healthy'",
+    "disease_name": "most likely condition based on symptoms described",
     "confidence": 75,
     "severity": "low/medium/high",
-    "analysis": "what's happening to the crop",
-    "remedy": "specific treatment steps",
-    "prevention_tips": ["tip 1", "tip 2", "tip 3"],
-    "immediate_action": "what to do today",
-    "follow_up": "monitoring plan"
+    "analysis": "detailed explanation of what's likely happening",
+    "remedy": "specific treatment steps with product names and dosages",
+    "prevention_tips": ["actionable tip 1", "tip 2", "tip 3"],
+    "immediate_action": "what to do RIGHT NOW",
+    "follow_up": "monitoring and follow-up plan",
+    "additional_questions": "what info would help confirm diagnosis"
 }}
 
-Be expert-level practical and specific."""
+Ask yourself: What disease/pest/deficiency matches these symptoms?
+Be SPECIFIC - avoid generic advice."""
 
         response = call_gemini(
             analysis_prompt,
-            "You are an expert agricultural pathologist and crop specialist. Analyze disease symptoms and provide actionable, precise remedies. Always respond with valid JSON only.",
-            temperature=0.5,
-            max_tokens=1500
+            "You are an expert agricultural pathologist. Provide PRECISE diagnoses with SPECIFIC remedies. Include exact chemical names and dosages. Always respond with valid JSON only, no markdown.",
+            temperature=0.4,
+            max_tokens=1800
         )
         
         response_text = response.strip()

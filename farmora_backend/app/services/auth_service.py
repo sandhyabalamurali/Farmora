@@ -71,6 +71,7 @@ async def signup_user(signup_data: SignupRequest) -> TokenResponse:
             user_id=user_id,
             email=signup_data.email,
             name=signup_data.name,
+            language=signup_data.language or "en",
             expires_in=86400
         )
         
@@ -118,6 +119,7 @@ async def login_user(login_data: LoginRequest) -> TokenResponse:
             user_id=user_doc["user_id"],
             email=user_doc["email"],
             name=user_doc["name"],
+            language=user_doc.get("language", "en"),
             expires_in=86400
         )
         

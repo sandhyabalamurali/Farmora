@@ -17,4 +17,8 @@ class Settings:
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 24
     NEWS_API_KEY: str = os.getenv("NEWS_API_KEY")
+    
+    # Model Configuration
+    WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "whisper-large-v3-turbo")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemma-3-27b-it")
 settings = Settings()

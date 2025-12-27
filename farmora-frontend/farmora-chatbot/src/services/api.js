@@ -130,7 +130,7 @@ class APIService {
 
   // ===== VOICE TRANSCRIPTION =====
 
-  async transcribeVoice(audioBlob, filename = 'audio.webm') {
+  async transcribeVoice(audioBlob, filename = 'audio.webm', language = 'en') {
     try {
       // Convert blob to base64
       const base64Audio = await this.blobToBase64(audioBlob);
@@ -140,7 +140,8 @@ class APIService {
         headers: this.getAuthHeaders(),
         body: JSON.stringify({
           file: base64Audio,
-          filename: filename
+          filename: filename,
+          language: language
         })
       });
 
@@ -245,6 +246,32 @@ class APIService {
       return await response.json();
     } catch (error) {
       console.error('Fetch market data error:', error);
+      throw error;
+    }
+  }
+
+  async getWeatherData(userId, language = 'en') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/weather/${userId}?language=${language}`, {
+        headers: this.getAuthHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch weather data');
+      return await response.json();
+    } catch (error) {
+      console.error('Fetch weather data error:', error);
+      throw error;
+    }
+  }
+
+  async getNewsData(userId, language = 'en', refresh = false) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/news/${userId}?language=${language}&refresh=${refresh}`, {
+        headers: this.getAuthHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch news data');
+      return await response.json();
+    } catch (error) {
+      console.error('Fetch news data error:', error);
       throw error;
     }
   }

@@ -30,6 +30,7 @@ class TokenResponse(BaseModel):
     user_id: str
     email: str
     name: str
+    language: Optional[str] = "en"
     expires_in: int = 86400  # 24 hours in seconds
 
 

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,15 +18,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Track when last data fetch completed successfully
+last_fetch_date = None
+
 # --- Background Task Loop ---
 async def periodic_data_fetch_loop():
-    """Runs the data fetcher every 30 minutes."""
+    """Runs the data fetcher once per day."""
+    global last_fetch_date
+    
     while True:
         try:
-            await fetch_and_cache_market_data()
+            today = datetime.utcnow().date()
+            
+            # Only run if it hasn't run today yet
+            if last_fetch_date is None or last_fetch_date < today:
+                logger.info(f"🔄 Starting market data fetch for {today}")
+                await fetch_and_cache_market_data()
+                last_fetch_date = today
+                logger.info(f"✅ Market data fetch completed for {today}")
+            else:
+                logger.debug(f"📌 Market data already fetched today ({today}), skipping")
         except Exception as e:
-            logger.error(f"Error in periodic data fetch: {e}")
-        await asyncio.sleep(1800)  # Sleep for 30 minutes
+            logger.warning(f"⚠️ Periodic data fetch encountered an issue: {e}")
+        
+        # Check every hour if we need to run
+        await asyncio.sleep(3600)
 
 
 # --- JWT Middleware ---
