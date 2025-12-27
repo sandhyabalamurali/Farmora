@@ -9,6 +9,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import Timeline from './components/Timeline';
 import Dashboard from './components/Dashboard';
+import Market from './components/Market';
 import './App.css';
 
 function App() {
