@@ -249,14 +249,6 @@ async def confirm_task(payload: ConfirmTaskRequest = Body(...)):
     
     After planner suggests tasks, farmer must confirm acceptance.
     Once confirmed, task is saved to schedule.
-    
-    Args:
-        task_id: Task ID to confirm
-        user_id: User confirming task
-        confirmation: True to accept, False to reject
-    
-    Returns:
-        Confirmation status and next steps
     """
     try:
         from farmora_backend.app.services.planner_service import validate_and_confirm_task
@@ -281,11 +273,17 @@ async def confirm_task(payload: ConfirmTaskRequest = Body(...)):
                 "next_action": "View tasks" if payload.confirmation else "Get new suggestions"
             }
         else:
-            raise HTTPException(status_code=500, detail="Failed to confirm task")
+            # Task not found or already in the target status
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Task {payload.task_id} not found or already processed"
+            )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error confirming task: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to confirm task")
+        raise HTTPException(status_code=500, detail=f"Failed to confirm task: {str(e)}")
 
 
 @router.post("/tasks/{task_id}/complete")
