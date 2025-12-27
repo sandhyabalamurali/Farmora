@@ -3,12 +3,15 @@ import json
 import uuid
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-from groq import Groq
 from farmora_backend.app.core.database import db
 from farmora_backend.app.config import settings
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
-client = Groq(api_key=settings.GROQ_API_KEY)
+
+# Configure Gemini
+genai.configure(api_key=settings.GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-2.5-flash')
 
 
 async def create_task(user_id: str, task_name: str, scheduled_date: str, 
@@ -36,7 +39,7 @@ async def create_task(user_id: str, task_name: str, scheduled_date: str,
         return task
     except Exception as e:
         logger.error(f"Error creating task: {e}")
-        return {}
+        raise
 
 
 async def get_user_tasks(user_id: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -50,7 +53,7 @@ async def get_user_tasks(user_id: str, status: Optional[str] = None) -> List[Dic
         return tasks
     except Exception as e:
         logger.error(f"Error retrieving tasks: {e}")
-        return []
+        raise
 
 
 async def update_task_status(task_id: str, status: str) -> bool:
@@ -70,18 +73,16 @@ async def update_task_status(task_id: str, status: str) -> bool:
         if result.modified_count > 0:
             logger.info(f"Task {task_id} status updated to {status}")
             return True
-        return False
+        raise Exception(f"Task {task_id} not found or not modified")
     except Exception as e:
         logger.error(f"Error updating task: {e}")
-        return False
+        raise
 
 
 async def generate_planner_suggestions(user_id: str, user_message: str, 
                                       user_profile: Optional[Dict] = None) -> List[Dict[str, Any]]:
     """
-    Generate AI-driven task suggestions based on user request and farm profile.
-    Uses LLM to understand user context and create intelligent recommendations.
-    Includes minimal safety checks before farmer confirmation.
+    Generate AI-driven task suggestions using Gemini based on user request and farm profile.
     """
     suggestions = []
     
@@ -102,10 +103,6 @@ async def generate_planner_suggestions(user_id: str, user_message: str,
         existing_tasks = await get_user_tasks(user_id, status="pending")
         if existing_tasks:
             context += f"\nPending tasks: {len(existing_tasks)} tasks already scheduled"
-        
-        # MINIMAL SAFETY CHECK: Warn if too many pending tasks
-        if len(existing_tasks) > 5:
-            context += "\n⚠️ NOTE: User has many pending tasks. Suggest consolidation where possible."
         
         # LLM prompt for intelligent task generation
         planning_prompt = f"""{context}
@@ -133,23 +130,15 @@ Generate tasks that are:
 
 Respond ONLY with a valid JSON array, no other text."""
 
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert agricultural planning assistant. Generate practical, seasonal farm tasks with safety considerations. Always respond with valid JSON array only."
-                },
-                {
-                    "role": "user",
-                    "content": planning_prompt
-                }
-            ],
-            temperature=0.7,
-            max_tokens=2000
+        response = gemini_model.generate_content(
+            planning_prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=2000,
+            )
         )
         
-        response_text = response.choices[0].message.content.strip()
+        response_text = response.text.strip()
         
         # Extract JSON from response
         try:
@@ -159,13 +148,12 @@ Respond ONLY with a valid JSON array, no other text."""
                 response_text = response_text.split("```")[1].split("```")[0].strip()
             
             tasks_data = json.loads(response_text)
-        except json.JSONDecodeError:
-            logger.warning("Failed to parse task suggestions JSON")
-            tasks_data = []
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse task suggestions JSON: {e}")
+            raise Exception(f"Failed to parse AI response: {e}")
         
-        # SAFETY VALIDATION: Check each task before adding to suggestions
+        # Process each task
         for task in tasks_data if isinstance(tasks_data, list) else []:
-            # Validate task has required fields
             if not task.get("task_name"):
                 logger.warning(f"Skipping task without name: {task}")
                 continue
@@ -173,7 +161,6 @@ Respond ONLY with a valid JSON array, no other text."""
             # Parse and validate date
             try:
                 task_date = task.get("date", (datetime.utcnow() + timedelta(days=1)).isoformat()[:10])
-                # Ensure date is in future
                 if datetime.fromisoformat(task_date) < datetime.utcnow():
                     task_date = (datetime.utcnow() + timedelta(days=1)).isoformat()[:10]
             except (ValueError, TypeError):
@@ -194,11 +181,11 @@ Respond ONLY with a valid JSON array, no other text."""
                 "estimated_hours": task.get("estimated_hours", 2),
                 "resources_needed": task.get("resources_needed", []),
                 "safety_notes": task.get("safety_notes", ""),
-                "requires_confirmation": True,  # Always require farmer confirmation
+                "requires_confirmation": True,
                 "status": "pending"
             }
             
-            # Persist the suggested task as a pending task in DB so it can be confirmed later
+            # Persist the suggested task
             created = await create_task(
                 user_id=user_id,
                 task_name=suggestion["task_name"],
@@ -209,40 +196,28 @@ Respond ONLY with a valid JSON array, no other text."""
 
             if created and created.get("task_id"):
                 suggestion["task_id"] = created.get("task_id")
-                # Keep status as 'pending' until user confirms
                 suggestion["status"] = created.get("status", "pending")
                 logger.info(f"Generated and persisted task: {suggestion['task_name']} ({suggestion['task_id']}) for user {user_id}")
                 suggestions.append(suggestion)
             else:
-                logger.warning(f"Failed to persist generated task for user {user_id}: {suggestion['task_name']}")
+                raise Exception(f"Failed to persist task: {suggestion['task_name']}")
         
         return suggestions
         
     except Exception as e:
         logger.error(f"Error generating planner suggestions: {e}", exc_info=True)
-        return []
+        raise
 
 
 async def validate_and_confirm_task(task_id: str, user_id: str, confirmation: bool) -> bool:
     """
     Farmer confirmation logic: Accept or reject a suggested task.
-    Once confirmed, task moves from 'pending' to 'confirmed' status.
-    
-    Args:
-        task_id: Task to confirm
-        user_id: User confirming task
-        confirmation: True to confirm, False to reject
-    
-    Returns:
-        Boolean indicating success
     """
     try:
         if confirmation:
-            # Save confirmed task to database
             status = "confirmed"
             logger.info(f"Task {task_id} confirmed by farmer {user_id}")
         else:
-            # Mark as rejected
             status = "rejected"
             logger.info(f"Task {task_id} rejected by farmer {user_id}")
         
@@ -251,23 +226,16 @@ async def validate_and_confirm_task(task_id: str, user_id: str, confirmation: bo
         
     except Exception as e:
         logger.error(f"Error in task confirmation: {e}")
-        return False
+        raise
 
 
 async def get_tasks_awaiting_confirmation(user_id: str) -> List[Dict[str, Any]]:
     """
     Retrieve all tasks awaiting farmer confirmation.
-    
-    Args:
-        user_id: User ID
-    
-    Returns:
-        List of pending tasks requiring confirmation
     """
     try:
         tasks = await get_user_tasks(user_id, status="pending")
         return tasks
     except Exception as e:
         logger.error(f"Error fetching pending tasks: {e}")
-        return []
-
+        raise
