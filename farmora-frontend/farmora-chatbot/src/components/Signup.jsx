@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { UserPlus, Mail, Lock, User, MapPin, Leaf, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { UserPlus, Mail, Lock, User, MapPin, Leaf, AlertCircle, Navigation, Loader } from 'lucide-react';
 import api from '../services/api';
 import './Auth.css';
 
@@ -10,10 +10,64 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
     password: '',
     confirmPassword: '',
     farmLocation: '',
-    crops: ''
+    crops: '',
+    latitude: null,
+    longitude: null,
+    language: 'en'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('');
+
+  // Request GPS location on component mount
+  useEffect(() => {
+    requestLocation();
+  }, []);
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('Geolocation not supported by browser');
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationStatus('Requesting location permission...');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData(prev => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        }));
+        setLocationStatus(`📍 Location captured: ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
+        setLocationLoading(false);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationStatus('❌ Location permission denied. Weather features will be limited.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationStatus('❌ Location unavailable. Please try again.');
+            break;
+          case error.TIMEOUT:
+            setLocationStatus('❌ Location request timed out.');
+            break;
+          default:
+            setLocationStatus('❌ Unable to get location.');
+        }
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,6 +93,12 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
       return;
     }
 
+    // Warn if no location
+    if (!formData.latitude || !formData.longitude) {
+      const proceed = window.confirm('Location not captured. Weather features will be limited. Continue anyway?');
+      if (!proceed) return;
+    }
+
     setLoading(true);
 
     try {
@@ -52,7 +112,10 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
         formData.name,
         formData.password,
         formData.farmLocation,
-        cropsArray
+        cropsArray,
+        formData.latitude,
+        formData.longitude,
+        formData.language
       );
 
       api.setUser(response);
@@ -63,6 +126,19 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
       setLoading(false);
     }
   };
+
+  const languages = [
+    { code: 'en', name: 'English' },
+    { code: 'hi', name: 'हिंदी (Hindi)' },
+    { code: 'bn', name: 'বাংলা (Bengali)' },
+    { code: 'gu', name: 'ગુજરાતી (Gujarati)' },
+    { code: 'kn', name: 'ಕನ್ನಡ (Kannada)' },
+    { code: 'ml', name: 'മലയാളം (Malayalam)' },
+    { code: 'mr', name: 'मराठी (Marathi)' },
+    { code: 'ta', name: 'தமிழ் (Tamil)' },
+    { code: 'te', name: 'తెలుగు (Telugu)' },
+    { code: 'ur', name: 'اردو (Urdu)' }
+  ];
 
   return (
     <div className="auth-container">
@@ -82,6 +158,25 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
               <span>{error}</span>
             </div>
           )}
+
+          {/* Location Status */}
+          <div className={`location-banner ${formData.latitude ? 'success' : 'warning'}`}>
+            {locationLoading ? (
+              <Loader className="w-4 h-4 animate-spin" />
+            ) : (
+              <Navigation className="w-4 h-4" />
+            )}
+            <span>{locationStatus || 'Click to capture your location'}</span>
+            {!formData.latitude && !locationLoading && (
+              <button 
+                type="button" 
+                onClick={requestLocation}
+                className="retry-location-btn"
+              >
+                Retry
+              </button>
+            )}
+          </div>
 
           <div className="form-row">
             <div className="form-group">
@@ -187,6 +282,24 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin }) => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Language Selection */}
+          <div className="form-group">
+            <label htmlFor="language" className="form-label">Preferred Language</label>
+            <select
+              id="language"
+              name="language"
+              value={formData.language}
+              onChange={handleChange}
+              className="form-input form-select"
+            >
+              {languages.map(lang => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <button
