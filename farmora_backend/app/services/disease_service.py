@@ -1,11 +1,28 @@
 import logging
 import json
 from typing import Dict, Any, Optional
-from groq import Groq
 from farmora_backend.app.config import settings
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
-client = Groq(api_key=settings.GROQ_API_KEY)
+
+# Configure Gemini
+genai.configure(api_key=settings.GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+
+
+def call_gemini(prompt: str, system_prompt: str = "", temperature: float = 0.5, max_tokens: int = 1500) -> str:
+    """Helper function to call Gemini API."""
+    full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+    
+    response = gemini_model.generate_content(
+        full_prompt,
+        generation_config=genai.types.GenerationConfig(
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+        )
+    )
+    return response.text
 
 
 async def identify_crop_type(user_crops: list, image_data: Optional[str] = None) -> str:
@@ -14,11 +31,9 @@ async def identify_crop_type(user_crops: list, image_data: Optional[str] = None)
     Returns: 'paddy', 'wheat', 'maize', 'other', or 'unknown'
     """
     try:
-        # If user has crops listed, identify primary crop
         if user_crops:
             crop_name = user_crops[0].lower()
             
-            # Map common crop names to categories
             paddy_aliases = ['paddy', 'rice', 'dhaan', 'chawal', 'oryza']
             wheat_aliases = ['wheat', 'gehun', 'gandu']
             maize_aliases = ['maize', 'corn', 'makka', 'bhutta']
@@ -32,22 +47,12 @@ async def identify_crop_type(user_crops: list, image_data: Optional[str] = None)
             else:
                 return "other"
         
-        # If no crops listed but image provided, use LLM to identify
         if image_data:
             crop_prompt = """Identify the crop in this image with one word only: 'paddy', 'wheat', 'maize', or 'other'.
 Respond with ONLY the crop name, nothing else."""
             
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": "You are a crop identification expert."},
-                    {"role": "user", "content": crop_prompt}
-                ],
-                temperature=0.1,
-                max_tokens=10
-            )
-            
-            crop_type = response.choices[0].message.content.strip().lower()
+            response = call_gemini(crop_prompt, "You are a crop identification expert.", temperature=0.1, max_tokens=10)
+            crop_type = response.strip().lower()
             if crop_type in ['paddy', 'wheat', 'maize', 'other']:
                 return crop_type
         
@@ -60,8 +65,7 @@ Respond with ONLY the crop name, nothing else."""
 
 async def analyze_paddy_disease(image_data: str, caption: str, location: str) -> Dict[str, Any]:
     """
-    Specialized disease analysis for Paddy crops using trained knowledge.
-    Paddy-specific diseases: Brown spot, Leaf blast, Sheath blight, Bakanae, etc.
+    Specialized disease analysis for Paddy crops using Gemini.
     """
     try:
         paddy_prompt = f"""You are an expert PADDY/RICE crop pathologist.
@@ -91,25 +95,15 @@ Provide analysis in JSON:
     "pesticide_recommended": "with dosage if needed"
 }}"""
         
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a paddy/rice crop specialist. Provide precise, practical remedies. Always return valid JSON."
-                },
-                {
-                    "role": "user",
-                    "content": paddy_prompt
-                }
-            ],
+        response = call_gemini(
+            paddy_prompt,
+            "You are a paddy/rice crop specialist. Provide precise, practical remedies. Always return valid JSON only.",
             temperature=0.4,
             max_tokens=1500
         )
         
-        response_text = response.choices[0].message.content.strip()
+        response_text = response.strip()
         
-        # Parse JSON
         try:
             if "```json" in response_text:
                 response_text = response_text.split("```json")[1].split("```")[0].strip()
@@ -142,21 +136,12 @@ Provide analysis in JSON:
         
     except Exception as e:
         logger.error(f"Error in paddy disease analysis: {e}")
-        return {
-            "label": "Paddy Analysis Error",
-            "confidence": 0,
-            "remedy": "Unable to analyze paddy disease. Consult local agricultural expert.",
-            "prevention_tips": [],
-            "severity": "unknown",
-            "requires_intervention": False,
-            "crop_type": "paddy"
-        }
+        raise
 
 
 async def analyze_multimodal_disease(image_data: str, caption: str, user_context: Optional[Dict] = None) -> Dict[str, Any]:
     """
-    General disease analysis for non-paddy crops using multimodal AI.
-    Works for any crop type.
+    General disease analysis for non-paddy crops using Gemini.
     """
     try:
         context_str = ""
@@ -202,25 +187,15 @@ Provide detailed agricultural analysis in JSON format:
 
 Be expert-level practical and specific."""
 
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert agricultural pathologist and crop specialist. Analyze disease symptoms and provide actionable, precise remedies. Always respond with valid JSON."
-                },
-                {
-                    "role": "user",
-                    "content": analysis_prompt
-                }
-            ],
+        response = call_gemini(
+            analysis_prompt,
+            "You are an expert agricultural pathologist and crop specialist. Analyze disease symptoms and provide actionable, precise remedies. Always respond with valid JSON only.",
             temperature=0.5,
             max_tokens=1500
         )
         
-        response_text = response.choices[0].message.content.strip()
+        response_text = response.strip()
         
-        # Parse JSON response
         try:
             if "```json" in response_text:
                 response_text = response_text.split("```json")[1].split("```")[0].strip()
@@ -254,42 +229,20 @@ Be expert-level practical and specific."""
         
     except Exception as e:
         logger.error(f"Error in general disease analysis: {e}")
-        return {
-            "label": "Analysis Error",
-            "confidence": 0,
-            "remedy": "Unable to analyze at this moment. Please try again or consult a local agricultural expert.",
-            "prevention_tips": [],
-            "severity": "unknown",
-            "requires_intervention": False,
-            "crop_type": "other"
-        }
+        raise
 
 
 async def analyze_disease(image_data: str, caption: str, user_context: Optional[Dict] = None) -> Dict[str, Any]:
     """
     Main disease analysis function with crop-based routing.
-    
-    Flow:
-    1. Identify crop type from user profile or image
-    2. If Paddy: Use specialized paddy disease model
-    3. Else: Use general multimodal disease analysis
-    
-    Args:
-        image_data: Base64 encoded image or None
-        caption: Image caption or symptom description
-        user_context: User profile with crops and location
-    
-    Returns:
-        Disease analysis dict with remedy, prevention, severity
+    Uses Gemini for all analysis.
     """
     try:
-        # 1. Identify crop type
         user_crops = user_context.get("crops", []) if user_context else []
         crop_type = await identify_crop_type(user_crops, image_data)
         
         logger.info(f"Identified crop type: {crop_type}")
         
-        # 2. Route to appropriate analyzer
         if crop_type == "paddy":
             location = user_context.get("farm_location", "") if user_context else ""
             result = await analyze_paddy_disease(image_data or "", caption or "", location)
@@ -300,11 +253,4 @@ async def analyze_disease(image_data: str, caption: str, user_context: Optional[
         
     except Exception as e:
         logger.error(f"Error in main disease analysis: {e}", exc_info=True)
-        return {
-            "label": "Analysis Error",
-            "confidence": 0,
-            "remedy": "Unable to analyze disease. Please try again.",
-            "prevention_tips": [],
-            "severity": "unknown",
-            "requires_intervention": False
-        }
+        raise
