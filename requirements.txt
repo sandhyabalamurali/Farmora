@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+motor
+python-dotenv
+langchain
+langgraph
+groq
+sentence-transformers
+joblib
+numpy
+scikit-learn
+pydantic>=2.0.0
+pydantic[email]
+passlib[bcrypt]
+PyJWT
+httpx
