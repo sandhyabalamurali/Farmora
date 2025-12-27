@@ -79,6 +79,7 @@ async def fetch_and_process_market_data():
 async def _ai_filter_and_rank_news(articles: List[Dict]) -> List[Dict[str, Any]]:
     """
     Summarize the top 10 articles using the LLM and return concise structured summaries.
+    Falls back to raw articles if AI is unavailable.
     """
     try:
         # Take top 10 articles from API
@@ -155,7 +156,20 @@ Articles:
 
     except Exception as e:
         logger.error(f"Error in AI news summarization: {e}", exc_info=True)
-        return []
+        # Return raw articles as fallback when AI completely fails
+        logger.info("⚠️ Falling back to raw articles without AI processing")
+        fallback_news = []
+        for art in articles[:10]:
+            desc = art.get("description") or art.get("title") or ""
+            fallback_news.append({
+                "title": art.get("title", "Agricultural Update"),
+                "description": desc,
+                "summary": (desc[:280] + "...") if len(desc) > 300 else desc,
+                "source": art.get("source", {}).get("domain", "") if isinstance(art.get("source"), dict) else art.get("source", ""),
+                "url": art.get("href", "") or art.get("url", ""),
+                "published_at": art.get("published_at", "")
+            })
+        return fallback_news
 
 
 async def generate_weather_insights(user_profile: Optional[Dict] = None) -> str:
