@@ -11,6 +11,8 @@ class Settings:
     MONGO_URL: str = os.getenv("MONGO_URL", "mongodb://localhost:27017")
     DB_NAME: str = "farmora_db"
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
+    OPENWEATHER_API_KEY: str = os.getenv("OPENWEATHER_API_KEY")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production-immediately")
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 24
