@@ -292,23 +292,17 @@ async def confirm_task(payload: ConfirmTaskRequest = Body(...)):
 async def mark_task_complete(task_id: str, payload: TaskCompleteRequest = Body(...)):
     """
     Mark task as completed.
-    Triggers LLM to generate encouraging message and next steps.
-    
-    Args:
-        task_id: Task ID to mark complete
-        user_id: User completing task
-    
-    Returns:
-        Completion confirmation and AI-generated encouragement
+    Triggers Gemini to generate encouraging message and next steps.
     """
     try:
         from farmora_backend.app.services.planner_service import update_task_status, get_user_tasks
+        import google.generativeai as genai
         
         # Mark task as completed
         success = await update_task_status(task_id, "completed")
         
         if success:
-            # Generate encouraging message using LLM
+            # Generate encouraging message using Gemini
             completion_prompt = f"""User just completed a farm task. Generate a short, encouraging message:
 - Task ID: {task_id}
 - User: {payload.user_id}
@@ -321,26 +315,18 @@ Message should:
 
 Use appropriate emojis."""
             
-            from groq import Groq
-            client = Groq(api_key=settings.GROQ_API_KEY)
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            model = genai.GenerativeModel('gemini-2.5-flash')
             
-            response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an encouraging agricultural assistant. Celebrate farmer achievements warmly and briefly."
-                    },
-                    {
-                        "role": "user",
-                        "content": completion_prompt
-                    }
-                ],
-                temperature=0.8,
-                max_tokens=300
+            response = model.generate_content(
+                f"You are an encouraging agricultural assistant. Celebrate farmer achievements warmly and briefly.\n\n{completion_prompt}",
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.8,
+                    max_output_tokens=300,
+                )
             )
             
-            encouragement = response.choices[0].message.content
+            encouragement = response.text
             logger.info(f"Task {task_id} marked complete by user {payload.user_id}")
             
             return {
@@ -354,7 +340,7 @@ Use appropriate emojis."""
         
     except Exception as e:
         logger.error(f"Error marking task complete: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to mark task complete")
+        raise HTTPException(status_code=500, detail=f"Failed to mark task complete: {str(e)}")
 
 
 @router.get("/tasks/{user_id}")
