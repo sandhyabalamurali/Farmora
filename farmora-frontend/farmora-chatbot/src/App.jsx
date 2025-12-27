@@ -387,14 +387,6 @@ function App() {
           </div>
         </div>
 
-        {/* Click outside to close language dropdown */}
-        {showLanguageDropdown && (
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setShowLanguageDropdown(false)}
-          />
-        )}
-
         {/* Main Content Area */}
         {currentTab === 'dashboard' && <Dashboard user={user} />}
         {currentTab === 'timeline' && <Timeline user={user} items={timelineItems} />}
