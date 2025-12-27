@@ -112,7 +112,7 @@ class FarmoraAPITester:
         """Test user login - using existing user or create new one"""
         # Try with a known test account first
         login_data = {
-            "email": "test@farmora.com",
+            "email": "test@gmail.com",
             "password": "TestPass123!"
         }
         
