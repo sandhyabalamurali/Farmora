@@ -227,7 +227,7 @@ async def validate_and_confirm_task(task_id: str, user_id: str, confirmation: bo
         
     except Exception as e:
         logger.error(f"Error in task confirmation: {e}")
-        raise
+        return False
 
 
 async def get_tasks_awaiting_confirmation(user_id: str) -> List[Dict[str, Any]]:
