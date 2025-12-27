@@ -177,6 +177,19 @@ class APIService {
     }
   }
 
+  async getMarketData(userId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/market/${userId}`, {
+        headers: this.getAuthHeaders()
+      });
+      if (!response.ok) throw new Error('Failed to fetch market data');
+      return await response.json();
+    } catch (error) {
+      console.error('Fetch market data error:', error);
+      throw error;
+    }
+  }
+
   // ===== HEALTH CHECK =====
   
   async healthCheck() {
