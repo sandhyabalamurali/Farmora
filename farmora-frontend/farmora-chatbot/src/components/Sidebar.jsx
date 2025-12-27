@@ -12,9 +12,8 @@ const Sidebar = ({ sidebarOpen, startNewChat, messages, user, currentTab, setCur
 
   const tabs = [
     { id: 'chat', label: 'Chat', icon: MessageSquare },
-    { id: 'market', label: 'Market', icon: TrendingUp },
+    { id: 'dashboard', label: 'AI News', icon: TrendingUp },
     { id: 'timeline', label: 'Timeline', icon: Calendar },
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ];
 
   return (
