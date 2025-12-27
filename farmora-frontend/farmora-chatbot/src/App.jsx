@@ -15,13 +15,14 @@ import './App.css';
 function App() {
   const [authState, setAuthState] = useState('loading'); // loading, login, signup, authenticated
   const [user, setUser] = useState(null);
-  const [currentTab, setCurrentTab] = useState('chat'); // chat, dashboard, timeline
+  const [currentTab, setCurrentTab] = useState('chat'); // chat, dashboard, timeline, market
   const [timelineItems, setTimelineItems] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingTasks, setPendingTasks] = useState([]);
+  const [selectedAgent, setSelectedAgent] = useState(null);
 
   // Check if user is already logged in
   useEffect(() => {
