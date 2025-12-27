@@ -14,7 +14,7 @@ class APIService {
 
   // ===== AUTH ENDPOINTS =====
   
-  async signup(email, name, password, farmLocation = '', crops = []) {
+  async signup(email, name, password, farmLocation = '', crops = [], latitude = null, longitude = null, language = 'en') {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
@@ -26,7 +26,10 @@ class APIService {
           name,
           password,
           farm_location: farmLocation,
-          crops: crops.length > 0 ? crops : undefined
+          crops: crops.length > 0 ? crops : undefined,
+          latitude,
+          longitude,
+          language
         })
       });
 
@@ -82,6 +85,22 @@ class APIService {
     }
   }
 
+  async updateProfile(updates) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) throw new Error('Failed to update profile');
+      return await response.json();
+    } catch (error) {
+      console.error('Profile update error:', error);
+      throw error;
+    }
+  }
+
   // ===== CHAT ENDPOINT =====
   
   async sendMessage(userId, textMessage, cropImage = null, caption = null) {
@@ -107,6 +126,46 @@ class APIService {
       console.error('Chat error:', error);
       throw error;
     }
+  }
+
+  // ===== VOICE TRANSCRIPTION =====
+
+  async transcribeVoice(audioBlob, filename = 'audio.webm') {
+    try {
+      // Convert blob to base64
+      const base64Audio = await this.blobToBase64(audioBlob);
+      
+      const response = await fetch(`${API_BASE_URL}/voice/transcribe-file`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          file: base64Audio,
+          filename: filename
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Transcription failed');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Transcription error:', error);
+      throw error;
+    }
+  }
+
+  async blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 
   // ===== TASK ENDPOINTS =====
