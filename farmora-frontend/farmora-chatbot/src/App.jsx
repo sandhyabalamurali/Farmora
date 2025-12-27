@@ -304,7 +304,6 @@ function App() {
         {/* Main Content Area */}
         {currentTab === 'dashboard' && <Dashboard user={user} />}
         {currentTab === 'timeline' && <Timeline user={user} items={timelineItems} />}
-        {currentTab === 'market' && <Market user={user} />}
         {currentTab === 'chat' && (
           (messages.length === 0) ? (
             <WelcomeScreen />
