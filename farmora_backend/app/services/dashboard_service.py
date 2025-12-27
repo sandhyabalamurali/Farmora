@@ -148,14 +148,21 @@ async def _ai_summarize_news(articles: List[Dict]) -> List[Dict[str, Any]]:
         top_articles = articles[:10]
 
         articles_text = "\n\n".join([
-            f"TITLE: {art.get('title','')}\nDESC: {art.get('description','') or ''}\nSOURCE: {art.get('source',{}).get('domain','') or art.get('source','') or ''}\nURL: {art.get('href','') or art.get('url','')}"
-            for art in top_articles
+            f"Article {i+1}:\nTITLE: {art.get('title','')}\nDESC: {art.get('description','') or ''}\nSOURCE: {art.get('source',{}).get('domain','') or art.get('source','') or ''}\nURL: {art.get('href','') or art.get('url','')}"
+            for i, art in enumerate(top_articles)
         ])
 
-        prompt = f"""Summarize each of the following agricultural news articles in one concise paragraph (20-50 words). 
-Return a JSON array of objects with fields: title, description, summary, source, url, published_at.
+        prompt = f"""Summarize each of the following {len(top_articles)} agricultural news articles. For EACH article, create a brief 20-40 word summary.
 
-Do NOT invent new articles or change titles. Use the provided title and description. Return ONLY valid JSON array.
+Return a JSON array with exactly {len(top_articles)} objects. Each object must have these fields:
+- "title": the original article title (keep it exact)
+- "description": original description or empty string
+- "summary": your 20-40 word summary
+- "source": the source domain
+- "url": the original URL
+- "published_at": publication date or empty string
+
+IMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation, just the JSON array.
 
 Articles:
 {articles_text}
@@ -165,24 +172,50 @@ Articles:
             prompt,
             generation_config=genai.types.GenerationConfig(
                 temperature=0.2,
-                max_output_tokens=2000,
+                max_output_tokens=3000,
             )
         )
 
         response_text = response.text.strip()
-        logger.info(f"🤖 [Gemini Response] Raw response:\n{response_text[:1000]}")
+        logger.info(f"🤖 [Gemini Response] Raw response (first 500 chars):\n{response_text[:500]}")
 
-        # Extract JSON
+        # Clean up the response text
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            parts = response_text.split("```")
+            for part in parts:
+                part = part.strip()
+                if part.startswith("["):
+                    response_text = part
+                    break
+        
+        # Try to find JSON array in response
+        if not response_text.startswith("["):
+            start_idx = response_text.find("[")
+            end_idx = response_text.rfind("]") + 1
+            if start_idx != -1 and end_idx > start_idx:
+                response_text = response_text[start_idx:end_idx]
+
         try:
-            if "```json" in response_text:
-                response_text = response_text.split("```json")[1].split("```")[0].strip()
-            elif "```" in response_text:
-                response_text = response_text.split("```")[1].split("```")[0].strip()
-
             ranked = json.loads(response_text)
-        except Exception as e:
-            logger.error(f"Failed to parse Gemini JSON: {e}")
-            raise Exception(f"Failed to parse AI response: {e}")
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse Gemini JSON: {e}")
+            # Fall back to creating summaries from raw articles
+            processed_news = []
+            for art in top_articles:
+                desc = art.get("description") or art.get("title") or ""
+                summary = (desc[:150] + "...") if len(desc) > 150 else desc
+                processed_news.append({
+                    "title": art.get("title", "Agricultural Update"),
+                    "description": desc,
+                    "summary": summary,
+                    "source": art.get("source", {}).get("domain", "") if isinstance(art.get("source"), dict) else str(art.get("source", "")),
+                    "url": art.get("href", "") or art.get("url", ""),
+                    "published_at": art.get("published_at", "")
+                })
+            logger.info(f"📰 Fallback: processed {len(processed_news)} news items without AI summary")
+            return processed_news
 
         processed_news: List[Dict[str, Any]] = []
 
@@ -196,15 +229,29 @@ Articles:
                     "url": item.get("url", ""),
                     "published_at": item.get("published_at", "")
                 })
-        else:
-            raise Exception("AI returned invalid response format")
+        
+        if not processed_news:
+            raise Exception("No news items processed from AI response")
 
         logger.info(f"📰 Final processed news count: {len(processed_news)}")
         return processed_news
 
     except Exception as e:
         logger.error(f"Error in AI news summarization: {e}", exc_info=True)
-        raise
+        # Return simplified news without AI summary as fallback
+        fallback_news = []
+        for art in articles[:10]:
+            desc = art.get("description") or art.get("title") or ""
+            fallback_news.append({
+                "title": art.get("title", "Agricultural Update"),
+                "description": desc,
+                "summary": (desc[:150] + "...") if len(desc) > 150 else desc,
+                "source": art.get("source", {}).get("domain", "") if isinstance(art.get("source"), dict) else str(art.get("source", "")),
+                "url": art.get("href", "") or art.get("url", ""),
+                "published_at": art.get("published_at", "")
+            })
+        logger.info(f"📰 Exception fallback: returning {len(fallback_news)} news items without AI processing")
+        return fallback_news
 
 
 async def generate_weather_insights(user_profile: Optional[Dict] = None) -> Dict[str, Any]:
