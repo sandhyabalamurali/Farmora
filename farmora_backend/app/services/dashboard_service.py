@@ -5,13 +5,16 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from farmora_backend.app.core.database import db
-from groq import Groq
+import google.generativeai as genai
 from farmora_backend.app.config import settings
 
 logger = logging.getLogger(__name__)
-client = Groq(api_key=settings.GROQ_API_KEY)
 
-# Configuration
+# Configure Gemini
+genai.configure(api_key=settings.GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+# Configuration - Updated to new API with agriculture filter
 NEWS_API_URL = "https://api.apitube.io/v1/news/everything"
 CACHE_KEY = "dashboard:market_news"
 API_KEY = settings.NEWS_API_KEY
