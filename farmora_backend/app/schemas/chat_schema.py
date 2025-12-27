@@ -5,13 +5,16 @@ from datetime import datetime
 # ===== AUTHENTICATION SCHEMAS =====
 
 class SignupRequest(BaseModel):
-    """Schema for user registration."""
+    """Schema for user registration with GPS location."""
     email: EmailStr
     name: str
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
     farm_location: Optional[str] = None
     crops: Optional[List[str]] = None
     phone: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    language: Optional[str] = "en"
 
 
 class LoginRequest(BaseModel):
@@ -38,6 +41,9 @@ class UserResponseSchema(BaseModel):
     farm_location: Optional[str] = None
     crops: List[str] = []
     phone: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    language: Optional[str] = "en"
     created_at: datetime
     updated_at: datetime
 
