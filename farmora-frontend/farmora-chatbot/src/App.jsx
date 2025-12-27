@@ -347,21 +347,28 @@ function App() {
               </button>
               
               {showLanguageDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-green-700/30 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
-                  {LANGUAGES.map(lang => (
-                    <button
-                      key={lang.code}
-                      onClick={() => handleLanguageChange(lang.code)}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-green-800/40 transition-colors ${
-                        currentLanguage === lang.code 
-                          ? 'bg-green-700/30 text-green-300' 
-                          : 'text-gray-300'
-                      }`}
-                    >
-                      {lang.name}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {/* Backdrop to close dropdown when clicking outside */}
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowLanguageDropdown(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-green-700/30 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+                    {LANGUAGES.map(lang => (
+                      <button
+                        key={lang.code}
+                        onClick={() => handleLanguageChange(lang.code)}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-green-800/40 transition-colors ${
+                          currentLanguage === lang.code 
+                            ? 'bg-green-700/30 text-green-300' 
+                            : 'text-gray-300'
+                        }`}
+                      >
+                        {lang.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
