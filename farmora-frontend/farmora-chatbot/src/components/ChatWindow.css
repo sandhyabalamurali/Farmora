@@ -256,8 +256,8 @@
 
 /* Planner Card */
 .planner-card {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
-  border: 2px solid rgba(139, 92, 246, 0.3);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+  border: 2px solid rgba(34, 197, 94, 0.3);
   border-radius: 1rem;
   padding: 1.25rem;
   animation: slideIn 0.3s ease-out;
@@ -265,7 +265,7 @@
 
 .planner-section h4 {
   margin: 0 0 1rem 0;
-  color: #a78bfa;
+  color: #4ade80;
   font-size: 1rem;
 }
 
@@ -276,12 +276,12 @@
   gap: 1rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  border-bottom: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .planner-header h4 {
   margin: 0;
-  color: #c084fc;
+  color: #22c55e;
   font-size: 1.125rem;
 }
 
