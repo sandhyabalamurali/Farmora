@@ -88,7 +88,7 @@ class FarmoraAPITester:
         """Test user signup with GPS location"""
         timestamp = int(time.time())
         signup_data = {
-            "email": f"farmer{timestamp}@farmora.test",
+            "email": f"farmer{timestamp}@gmail.com",
             "name": f"Test Farmer {timestamp}",
             "password": "TestPass123!",
             "farm_location": "Maharashtra, India",
