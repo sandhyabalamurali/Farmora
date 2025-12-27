@@ -431,6 +431,46 @@ async def get_timeline(user_id: str):
         raise HTTPException(status_code=500, detail="Failed to fetch timeline data")
 
 
+@router.get("/market/{user_id}")
+async def get_market_data(user_id: str):
+    """
+    Market data endpoint: returns latest market news and price insights.
+    Fetches AI-processed market news and farming-relevant information.
+    """
+    try:
+        # Get user profile for context
+        user_profile = await get_user_profile(user_id)
+        
+        # Get dashboard context which includes market news
+        dashboard_context = await get_dashboard_context(user_id, user_profile)
+        
+        market_news = dashboard_context.get("market_news", [])
+        
+        # Format market data for frontend
+        market_items = []
+        for news in market_news:
+            market_items.append({
+                "id": news.get("url", "")[:50],  # Use URL as simple ID
+                "title": news.get("title", "Market Update"),
+                "description": news.get("description", ""),
+                "summary": news.get("summary", ""),
+                "source": news.get("source", ""),
+                "url": news.get("url", ""),
+                "published_at": news.get("published_at", ""),
+                "type": "news"
+            })
+        
+        return {
+            "user_id": user_id,
+            "market_data": market_items,
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching market data for {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch market data")
+
+
 @router.get("/health")
 async def health_check():
     """Health check endpoint."""
