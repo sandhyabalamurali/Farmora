@@ -256,34 +256,44 @@ function App() {
 
   // Main app
   return (
-    <div className="h-screen flex bg-gray-900">
+    <div className="h-screen flex bg-gradient-to-br from-green-950 via-gray-900 to-emerald-950">
       <Sidebar
         sidebarOpen={sidebarOpen}
         startNewChat={startNewChat}
         messages={messages}
         user={user}
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
       />
 
       <div className="flex-1 flex flex-col">
         {/* Top Bar */}
-        <div className="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4">
-          <div className="flex items-center gap-3">
+        <div className="h-16 bg-gradient-to-r from-green-900/40 to-emerald-900/40 border-b border-green-800/30 backdrop-blur-sm flex items-center justify-between px-6 shadow-lg">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-green-800/40 rounded-lg transition-all duration-200 border border-green-700/30"
+              data-testid="toggle-sidebar-btn"
             >
-              <Menu className="w-5 h-5 text-gray-300" />
+              <Menu className="w-5 h-5 text-green-300" />
             </button>
-            <span className="font-bold text-2xl text-transparent bg-gradient-to-r from-purple-400 to-purple-600 bg-clip-text">
-              FarMora
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl">🌾</span>
+              <span className="font-bold text-3xl text-transparent bg-gradient-to-r from-green-400 via-emerald-400 to-green-500 bg-clip-text drop-shadow-lg">
+                FarMora
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-400">{user?.name}</span>
+            <div className="flex items-center gap-2 px-3 py-2 bg-green-900/30 rounded-lg border border-green-700/30">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-sm text-green-300 font-medium">{user?.name}</span>
+            </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 border border-red-700/30 hover:border-red-600/50"
+              data-testid="logout-btn"
             >
               <LogOut className="w-4 h-4" />
               Logout
@@ -291,9 +301,10 @@ function App() {
           </div>
         </div>
 
-        {/* Main Area */}
+        {/* Main Content Area */}
         {currentTab === 'dashboard' && <Dashboard user={user} />}
         {currentTab === 'timeline' && <Timeline user={user} items={timelineItems} />}
+        {currentTab === 'market' && <Market user={user} />}
         {currentTab === 'chat' && (
           (messages.length === 0) ? (
             <WelcomeScreen />
@@ -306,16 +317,18 @@ function App() {
           )
         )}
 
-        {/* Input Area */}
-        <InputArea
-          inputText={inputText}
-          setInputText={setInputText}
-          handleSendMessage={handleSendMessage}
-          handleMicClick={handleMicClick}
-          handleFileSelect={handleFileSelect}
-          sidebarOpen={sidebarOpen}
-          loading={loading}
-        />
+        {/* Input Area - Only show for chat tab */}
+        {currentTab === 'chat' && (
+          <InputArea
+            inputText={inputText}
+            setInputText={setInputText}
+            handleSendMessage={handleSendMessage}
+            handleMicClick={handleMicClick}
+            handleFileSelect={handleFileSelect}
+            sidebarOpen={sidebarOpen}
+            loading={loading}
+          />
+        )}
       </div>
     </div>
   );
