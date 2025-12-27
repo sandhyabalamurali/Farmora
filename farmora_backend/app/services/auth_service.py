@@ -20,7 +20,7 @@ async def signup_user(signup_data: SignupRequest) -> TokenResponse:
     Register a new user and return JWT token.
     
     Args:
-        signup_data: SignupRequest with email, name, password, etc.
+        signup_data: SignupRequest with email, name, password, GPS location, etc.
     
     Returns:
         TokenResponse with access token and user info
@@ -46,6 +46,9 @@ async def signup_user(signup_data: SignupRequest) -> TokenResponse:
             farm_location=signup_data.farm_location or "",
             crops=signup_data.crops or [],
             phone=signup_data.phone or "",
+            latitude=signup_data.latitude,
+            longitude=signup_data.longitude,
+            language=signup_data.language or "en",
         )
         
         # Save to MongoDB
@@ -55,7 +58,7 @@ async def signup_user(signup_data: SignupRequest) -> TokenResponse:
         if not result.inserted_id:
             raise Exception("Failed to insert user into database")
         
-        logger.info(f"✅ New user registered: {user_id} ({signup_data.email})")
+        logger.info(f"✅ New user registered: {user_id} ({signup_data.email}) at lat:{signup_data.latitude}, lon:{signup_data.longitude}")
         
         # Create JWT token
         token = create_access_token(
@@ -166,6 +169,9 @@ async def get_user_profile_full(user_id: str) -> Optional[UserResponseSchema]:
             farm_location=user.get("farm_location", ""),
             crops=user.get("crops", []),
             phone=user.get("phone", ""),
+            latitude=user.get("latitude"),
+            longitude=user.get("longitude"),
+            language=user.get("language", "en"),
             created_at=user.get("created_at"),
             updated_at=user.get("updated_at")
         )
