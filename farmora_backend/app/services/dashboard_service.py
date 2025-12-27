@@ -27,14 +27,15 @@ async def fetch_and_process_market_data():
     market_news = []
     try:
         async with httpx.AsyncClient() as client_http:
-            # Try agriculture-specific news first
+            # Use the new API endpoint with agriculture filter
             response = await client_http.get(
                 NEWS_API_URL,
                 params={
                     "api_key": API_KEY,
-                    "limit": 50,
-                    "language": "en",
-                    "q": "agriculture farming crop India"
+                    "per_page": 10,
+                    "category.id": "medtop:20000210",  # Agriculture category
+                    "language.code": "en",
+                    "source.country.code": "in"  # India sources
                 },
                 timeout=15.0
             )
@@ -48,14 +49,14 @@ async def fetch_and_process_market_data():
                     logger.error(f"❌ [Background Job] API Error: {data.get('errors')}")
                     return
                 
-                # Try different response structure keys
-                results = data.get("results", []) or data.get("articles", []) or data.get("news", []) or data.get("data", [])
+                # Get results from response
+                results = data.get("results", [])
                 logger.info(f"📰 [Background Job] Found {len(results)} articles")
                 
-                # Use AI to intelligently filter and rank news
+                # Use AI to intelligently summarize news
                 if results:
-                    market_news = await _ai_filter_and_rank_news(results)
-                    logger.info(f"🔍 [Background Job] AI selected {len(market_news)} relevant items")
+                    market_news = await _ai_summarize_news(results)
+                    logger.info(f"🔍 [Background Job] AI processed {len(market_news)} relevant items")
                 else:
                     logger.warning("⚠️ [Background Job] No results from API")
                 
