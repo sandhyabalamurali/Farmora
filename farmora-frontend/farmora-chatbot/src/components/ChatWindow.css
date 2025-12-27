@@ -316,7 +316,7 @@
 
 .task-date {
   margin: 0;
-  color: #a78bfa;
+  color: #4ade80;
   font-weight: 500;
   font-size: 0.9375rem;
 }
@@ -335,7 +335,7 @@
   padding: 0.75rem 1rem;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 0.5rem;
-  border-left: 3px solid #a78bfa;
+  border-left: 3px solid #4ade80;
 }
 
 .task-time {
