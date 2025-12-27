@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut, Globe } from 'lucide-react';
 import api from './services/api';
 import Sidebar from './components/Sidebar';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -11,10 +11,23 @@ import Timeline from './components/Timeline';
 import Dashboard from './components/Dashboard';
 import './App.css';
 
+const LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'hi', name: 'हिंदी' },
+  { code: 'bn', name: 'বাংলা' },
+  { code: 'gu', name: 'ગુજરાતી' },
+  { code: 'kn', name: 'ಕನ್ನಡ' },
+  { code: 'ml', name: 'മലയാളം' },
+  { code: 'mr', name: 'मराठी' },
+  { code: 'ta', name: 'தமிழ்' },
+  { code: 'te', name: 'తెలుగు' },
+  { code: 'ur', name: 'اردو' }
+];
+
 function App() {
-  const [authState, setAuthState] = useState('loading'); // loading, login, signup, authenticated
+  const [authState, setAuthState] = useState('loading');
   const [user, setUser] = useState(null);
-  const [currentTab, setCurrentTab] = useState('chat'); // chat, dashboard, timeline, market
+  const [currentTab, setCurrentTab] = useState('chat');
   const [timelineItems, setTimelineItems] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [messages, setMessages] = useState([]);
@@ -22,6 +35,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [pendingTasks, setPendingTasks] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -29,7 +44,9 @@ function App() {
     const savedUser = localStorage.getItem('farmora_user');
 
     if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
+      const userData = JSON.parse(savedUser);
+      setUser(userData);
+      setCurrentLanguage(userData.language || 'en');
       setAuthState('authenticated');
     } else {
       setAuthState('login');
@@ -38,6 +55,7 @@ function App() {
 
   const handleLoginSuccess = (response) => {
     setUser(response);
+    setCurrentLanguage(response.language || 'en');
     setAuthState('authenticated');
     setMessages([]);
     setSelectedAgent(null);
@@ -46,6 +64,7 @@ function App() {
 
   const handleSignupSuccess = (response) => {
     setUser(response);
+    setCurrentLanguage(response.language || 'en');
     setAuthState('authenticated');
     setMessages([]);
     setSelectedAgent(null);
@@ -58,6 +77,25 @@ function App() {
     setMessages([]);
     setSelectedAgent(null);
     setPendingTasks([]);
+    setCurrentLanguage('en');
+  };
+
+  const handleLanguageChange = async (langCode) => {
+    setCurrentLanguage(langCode);
+    setShowLanguageDropdown(false);
+    
+    // Update user profile with new language
+    try {
+      await api.updateProfile({ language: langCode });
+      const savedUser = localStorage.getItem('farmora_user');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        userData.language = langCode;
+        localStorage.setItem('farmora_user', JSON.stringify(userData));
+      }
+    } catch (error) {
+      console.error('Failed to update language preference:', error);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -83,7 +121,6 @@ function App() {
         null
       );
 
-      // Determine message type based on intent
       const agentMessage = {
         id: Date.now() + 1,
         text: response.ai_response,
@@ -101,7 +138,6 @@ function App() {
 
       setMessages(prev => [...prev, agentMessage]);
 
-      // If there are planner suggestions, store them
       if (response.planner_suggestions && response.planner_suggestions.length > 0) {
         setPendingTasks(response.planner_suggestions);
       }
@@ -120,9 +156,23 @@ function App() {
     }
   };
 
+  const handleVoiceTranscription = async (audioBlob) => {
+    try {
+      const result = await api.transcribeVoice(audioBlob, 'recording.webm');
+      if (result.success && result.text) {
+        setInputText(result.text);
+      } else {
+        throw new Error('No transcription result');
+      }
+    } catch (error) {
+      console.error('Transcription error:', error);
+      throw error;
+    }
+  };
+
   const handleMicClick = () => {
-    console.log('Microphone clicked - voice processing not implemented');
-    alert('Voice recording feature coming soon!');
+    // This is now handled by the InputArea component
+    console.log('Microphone click handled by InputArea');
   };
 
   const handleImageUpload = async (files) => {
@@ -203,10 +253,8 @@ function App() {
     try {
       const response = await api.confirmTask(task.task_id, user.user_id, confirmed);
       
-      // Remove from pending tasks
       setPendingTasks(prev => prev.filter(t => t.task_id !== task.task_id));
 
-      // Show confirmation message
       const confirmMessage = {
         id: Date.now(),
         text: response.message,
@@ -253,6 +301,8 @@ function App() {
     );
   }
 
+  const currentLangName = LANGUAGES.find(l => l.code === currentLanguage)?.name || 'English';
+
   // Main app
   return (
     <div className="h-screen flex bg-gradient-to-br from-green-950 via-gray-900 to-emerald-950">
@@ -285,6 +335,36 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Language Switcher */}
+            <div className="relative">
+              <button
+                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                className="flex items-center gap-2 px-3 py-2 bg-green-900/30 hover:bg-green-800/40 rounded-lg border border-green-700/30 transition-all"
+                data-testid="language-switcher-btn"
+              >
+                <Globe className="w-4 h-4 text-green-400" />
+                <span className="text-sm text-green-300">{currentLangName}</span>
+              </button>
+              
+              {showLanguageDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-green-700/30 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+                  {LANGUAGES.map(lang => (
+                    <button
+                      key={lang.code}
+                      onClick={() => handleLanguageChange(lang.code)}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-green-800/40 transition-colors ${
+                        currentLanguage === lang.code 
+                          ? 'bg-green-700/30 text-green-300' 
+                          : 'text-gray-300'
+                      }`}
+                    >
+                      {lang.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2 px-3 py-2 bg-green-900/30 rounded-lg border border-green-700/30">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span className="text-sm text-green-300 font-medium">{user?.name}</span>
@@ -299,6 +379,14 @@ function App() {
             </button>
           </div>
         </div>
+
+        {/* Click outside to close language dropdown */}
+        {showLanguageDropdown && (
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setShowLanguageDropdown(false)}
+          />
+        )}
 
         {/* Main Content Area */}
         {currentTab === 'dashboard' && <Dashboard user={user} />}
@@ -325,6 +413,7 @@ function App() {
             handleFileSelect={handleFileSelect}
             sidebarOpen={sidebarOpen}
             loading={loading}
+            onVoiceTranscription={handleVoiceTranscription}
           />
         )}
       </div>
