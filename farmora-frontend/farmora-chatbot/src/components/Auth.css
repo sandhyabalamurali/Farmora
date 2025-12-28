@@ -474,3 +474,364 @@
   background: #1f2937;
   color: #f3f4f6;
 }
+
+/* ============================================
+   MINIMALISTIC LOGIN PAGE STYLES
+   ============================================ */
+
+.login-page-minimal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(to bottom right, #022c22, #111827, #064e3b);
+}
+
+.login-heading-minimal {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2rem;
+  color: #4ade80;
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #86efac 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  display: block;
+  position: relative;
+  margin-top: 0;
+  line-height: 1.2;
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .login-heading-minimal {
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
+.login-container-minimal {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-form-minimal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.login-form-group-minimal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.login-label-minimal {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.login-input-minimal {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: #1e293b;
+  border: none;
+  border-radius: 0.5rem;
+  color: #f1f5f9;
+  font-size: 1rem;
+  outline: none;
+}
+
+.login-input-minimal::placeholder {
+  color: #64748b;
+}
+
+.login-input-minimal:focus {
+  background: #334155;
+}
+
+.login-error-minimal {
+  color: #f87171;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.login-button-minimal {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: #22c55e;
+  border: none;
+  border-radius: 0.5rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-button-minimal:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.login-button-minimal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-footer-minimal {
+  text-align: center;
+  margin-top: 1rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.login-link-minimal {
+  background: none;
+  border: none;
+  color: #22c55e;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0;
+  margin-left: 0.25rem;
+}
+
+.login-link-minimal:hover {
+  color: #4ade80;
+}
+
+.auth-back-button {
+  position: fixed;
+  top: 2rem;
+  left: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 0.5rem;
+  color: #a7f3d0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.auth-back-button:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #d1fae5;
+  transform: translateX(-4px);
+}
+
+@media (max-width: 640px) {
+  .auth-back-button {
+    top: 1rem;
+    left: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+  }
+  
+  .auth-back-button span {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page-minimal {
+    padding: 1rem;
+  }
+}
+
+/* ============================================
+   MINIMALISTIC SIGNUP PAGE STYLES
+   ============================================ */
+
+.signup-page-minimal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(to bottom right, #022c22, #111827, #064e3b);
+  overflow-y: auto;
+}
+
+.signup-container-minimal {
+  width: 100%;
+  max-width: 700px;
+}
+
+.signup-heading-minimal {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  color: #4ade80;
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #86efac 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  display: block;
+  position: relative;
+  margin-top: 80px;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .signup-heading-minimal {
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+}
+
+.signup-form-minimal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.signup-form-row-minimal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.signup-form-group-minimal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.signup-label-minimal {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.signup-input-minimal {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: #1e293b;
+  border: none;
+  border-radius: 0.5rem;
+  color: #f1f5f9;
+  font-size: 1rem;
+  outline: none;
+}
+
+.signup-input-minimal::placeholder {
+  color: #64748b;
+}
+
+.signup-input-minimal:focus {
+  background: #334155;
+}
+
+.signup-error-minimal {
+  color: #f87171;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.signup-location-minimal {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #1e293b;
+  border-radius: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.signup-retry-minimal {
+  margin-left: auto;
+  padding: 0.25rem 0.75rem;
+  background: #22c55e;
+  border: none;
+  border-radius: 0.375rem;
+  color: #ffffff;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.signup-retry-minimal:hover {
+  background: #16a34a;
+}
+
+.signup-button-minimal {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: #22c55e;
+  border: none;
+  border-radius: 0.5rem;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.signup-button-minimal:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.signup-button-minimal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.signup-footer-minimal {
+  text-align: center;
+  margin-top: 1rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.signup-link-minimal {
+  background: none;
+  border: none;
+  color: #22c55e;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0;
+  margin-left: 0.25rem;
+}
+
+.signup-link-minimal:hover {
+  color: #4ade80;
+}
+
+@media (max-width: 768px) {
+  .signup-form-row-minimal {
+    grid-template-columns: 1fr;
+  }
+  
+  .signup-container-minimal {
+    max-width: 400px;
+  }
+}
+
+@media (max-width: 480px) {
+  .signup-page-minimal {
+    padding: 1rem;
+  }
+}

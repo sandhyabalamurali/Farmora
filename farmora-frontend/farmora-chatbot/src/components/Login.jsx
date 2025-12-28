@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, Mail, Lock, AlertCircle, X } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import api from '../services/api';
 import './Auth.css';
 
@@ -26,89 +26,67 @@ const Login = ({ onLoginSuccess, onSwitchToSignup, onClose, isModal }) => {
   };
 
   return (
-    <div className={`auth-container ${isModal ? 'auth-modal' : ''}`}>
-      <div className="auth-card">
-        {isModal && (
-          <button className="auth-close-btn" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </button>
-        )}
-        <div className="auth-header">
-          <div className="auth-logo">🌾</div>
-          <h1 className="auth-title">FarMora</h1>
-          <p className="auth-subtitle">Smart Farming Assistant</p>
-        </div>
+    <div className="login-page-minimal">
+      {onClose && (
+        <button className="auth-back-button" onClick={onClose}>
+          <ArrowLeft className="w-5 h-5" />
+          <span>Back to Home</span>
+        </button>
+      )}
+      <div className="login-container-minimal">
+        <h1 className="login-heading-minimal">Login</h1>
+        <form onSubmit={handleSubmit} className="login-form-minimal">
+          <div className="login-form-group-minimal">
+            <label htmlFor="email" className="login-label-minimal">Email Address</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email Address"
+              className="login-input-minimal"
+              required
+              autoComplete="email"
+            />
+          </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <h2 className="form-heading">Welcome Back, Farmer!</h2>
+          <div className="login-form-group-minimal">
+            <label htmlFor="password" className="login-label-minimal">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              className="login-input-minimal"
+              required
+              autoComplete="current-password"
+            />
+          </div>
 
           {error && (
-            <div className="error-banner">
-              <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
-            </div>
+            <div className="login-error-minimal">{error}</div>
           )}
-
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email Address</label>
-            <div className="input-wrapper">
-              <Mail className="input-icon" />
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="form-input"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
-            <div className="input-wrapper">
-              <Lock className="input-icon" />
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="form-input"
-                required
-              />
-            </div>
-          </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="submit-button"
+            className="login-button-minimal"
           >
-            {loading ? (
-              <>
-                <span className="spinner"></span>
-                Logging in...
-              </>
-            ) : (
-              <>
-                <LogIn className="w-5 h-5" />
-                Login
-              </>
-            )}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
-        </form>
 
-        <div className="auth-footer">
-          <p>Don't have an account?</p>
-          <button
-            onClick={onSwitchToSignup}
-            className="switch-button"
-          >
-            Create one here
-          </button>
-        </div>
+          <div className="login-footer-minimal">
+            <span>Don't have an account? </span>
+            <button
+              type="button"
+              onClick={onSwitchToSignup}
+              className="login-link-minimal"
+            >
+              Create Account
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

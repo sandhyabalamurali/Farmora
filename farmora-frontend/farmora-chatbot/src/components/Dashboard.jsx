@@ -219,7 +219,6 @@ const Dashboard = ({ user, currentLanguage = 'en' }) => {
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-medium transition-all text-sm shadow-lg shadow-green-900/30"
                 >
-                  <span>Read Full Article</span>
                   <ArrowUpRight className="w-4 h-4" />
                 </a>
               )}

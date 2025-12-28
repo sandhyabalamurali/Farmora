@@ -1,19 +1,11 @@
 import React from 'react';
-import { Leaf, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 const LandingPage = ({ onLogin, onSignup }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-950 via-gray-900 to-emerald-950 overflow-hidden relative">
-      {/* Animated Background Elements */}
+      {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Floating leaves animation */}
-        <div className="absolute top-10 left-10 text-6xl opacity-20 animate-pulse">🍃</div>
-        <div className="absolute top-1/4 right-20 text-5xl opacity-15 animate-bounce">🌾</div>
-        <div className="absolute bottom-1/3 left-1/4 text-7xl opacity-10 animate-pulse delay-200">🌱</div>
-        <div className="absolute top-1/2 right-1/3 text-4xl opacity-20 animate-bounce delay-500">🌿</div>
-        <div className="absolute bottom-20 right-10 text-6xl opacity-15 animate-pulse delay-300">🍂</div>
-        <div className="absolute top-20 left-1/3 text-5xl opacity-10 animate-bounce delay-700">🌻</div>
-        
         {/* Gradient overlays */}
         <div className="absolute top-0 left-0 w-96 h-96 bg-green-500/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl"></div>
@@ -32,13 +24,13 @@ const LandingPage = ({ onLogin, onSignup }) => {
         <div className="flex items-center gap-4">
           <button
             onClick={onLogin}
-            className="px-6 py-2.5 text-green-300 hover:text-green-200 font-medium transition-all duration-300 hover:bg-green-900/30 rounded-lg"
+            className="px-6 py-2.5 text-green-300 font-medium rounded-lg"
           >
             Login
           </button>
           <button
             onClick={onSignup}
-            className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-medium rounded-lg transition-all duration-300 shadow-lg hover:shadow-green-500/30 flex items-center gap-2"
+            className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-lg shadow-lg flex items-center gap-2"
           >
             Get Started
             <ArrowRight className="w-4 h-4" />
@@ -51,7 +43,7 @@ const LandingPage = ({ onLogin, onSignup }) => {
         {/* Main Logo */}
         <div className="mb-8 relative">
           <div className="absolute inset-0 bg-green-500/20 blur-3xl rounded-full scale-150"></div>
-          <div className="relative text-9xl animate-pulse">🌾</div>
+          <div className="relative text-9xl">🌾</div>
         </div>
 
         {/* Brand Name */}
@@ -67,11 +59,11 @@ const LandingPage = ({ onLogin, onSignup }) => {
         {/* CTA Button */}
         <button
           onClick={onSignup}
-          className="group relative px-10 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white text-lg font-semibold rounded-xl transition-all duration-300 shadow-2xl hover:shadow-green-500/40 transform hover:scale-105 flex items-center gap-3"
+          className="px-10 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-lg font-semibold rounded-xl shadow-2xl flex items-center gap-3"
         >
           <Sparkles className="w-5 h-5" />
           Start Your Journey
-          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          <ArrowRight className="w-5 h-5" />
         </button>
 
         {/* Feature Pills */}
@@ -79,7 +71,7 @@ const LandingPage = ({ onLogin, onSignup }) => {
           {['🌱 Disease Detection', '📅 Smart Planning', '🌤️ Weather Insights', '📊 Market Intelligence'].map((feature, index) => (
             <div
               key={index}
-              className="px-5 py-2.5 bg-gray-800/40 backdrop-blur-sm border border-green-700/30 rounded-full text-sm text-gray-300 hover:border-green-500/50 hover:text-green-300 transition-all duration-300 cursor-default"
+              className="px-5 py-2.5 bg-gray-800/40 backdrop-blur-sm border border-green-700/30 rounded-full text-sm text-gray-300 cursor-default"
             >
               {feature}
             </div>

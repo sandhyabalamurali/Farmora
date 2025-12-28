@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Mail, Lock, User, MapPin, Leaf, AlertCircle, Navigation, Loader, X } from 'lucide-react';
+import { Navigation, Loader, ArrowLeft } from 'lucide-react';
 import api from '../services/api';
 import './Auth.css';
 
@@ -141,31 +141,25 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin, onClose, isModal }) => {
   ];
 
   return (
-    <div className={`auth-container ${isModal ? 'auth-modal' : ''}`}>
-      <div className="auth-card signup-card">
-        {isModal && (
-          <button className="auth-close-btn" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </button>
-        )}
-        <div className="auth-header">
-          <div className="auth-logo">🌾</div>
-          <h1 className="auth-title">FarMora</h1>
-          <p className="auth-subtitle">Join the Smart Farming Community</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <h2 className="form-heading">Create Your Farm Account</h2>
-
+    <div className="signup-page-minimal">
+      {onClose && (
+        <button className="auth-back-button" onClick={onClose}>
+          <ArrowLeft className="w-5 h-5" />
+          <span>Back to Home</span>
+        </button>
+      )}
+      <div className="signup-container-minimal">
+        {/* <br></br>
+        <br></br>
+        <br></br> */}
+        <h1 className="signup-heading-minimal">Signup</h1>
+        <form onSubmit={handleSubmit} className="signup-form-minimal">
           {error && (
-            <div className="error-banner">
-              <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
-            </div>
+            <div className="signup-error-minimal">{error}</div>
           )}
 
           {/* Location Status */}
-          <div className={`location-banner ${formData.latitude ? 'success' : 'warning'}`}>
+          <div className="signup-location-minimal">
             {locationLoading ? (
               <Loader className="w-4 h-4 animate-spin" />
             ) : (
@@ -176,128 +170,109 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin, onClose, isModal }) => {
               <button 
                 type="button" 
                 onClick={requestLocation}
-                className="retry-location-btn"
+                className="signup-retry-minimal"
               >
                 Retry
               </button>
             )}
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="name" className="form-label">Full Name</label>
-              <div className="input-wrapper">
-                <User className="input-icon" />
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Your name"
-                  className="form-input"
-                  required
-                />
-              </div>
+          <div className="signup-form-row-minimal">
+            <div className="signup-form-group-minimal">
+              <label htmlFor="name" className="signup-label-minimal">Full Name</label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Full Name"
+                className="signup-input-minimal"
+                required
+              />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="email" className="form-label">Email Address</label>
-              <div className="input-wrapper">
-                <Mail className="input-icon" />
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="your@email.com"
-                  className="form-input"
-                  required
-                />
-              </div>
+            <div className="signup-form-group-minimal">
+              <label htmlFor="email" className="signup-label-minimal">Email Address</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Email Address"
+                className="signup-input-minimal"
+                required
+              />
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="password" className="form-label">Password</label>
-              <div className="input-wrapper">
-                <Lock className="input-icon" />
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Min 8 characters"
-                  className="form-input"
-                  required
-                />
-              </div>
+          <div className="signup-form-row-minimal">
+            <div className="signup-form-group-minimal">
+              <label htmlFor="password" className="signup-label-minimal">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Password"
+                className="signup-input-minimal"
+                required
+              />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
-              <div className="input-wrapper">
-                <Lock className="input-icon" />
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm password"
-                  className="form-input"
-                  required
-                />
-              </div>
+            <div className="signup-form-group-minimal">
+              <label htmlFor="confirmPassword" className="signup-label-minimal">Confirm Password</label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Confirm Password"
+                className="signup-input-minimal"
+                required
+              />
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="farmLocation" className="form-label">Farm Location</label>
-              <div className="input-wrapper">
-                <MapPin className="input-icon" />
-                <input
-                  id="farmLocation"
-                  name="farmLocation"
-                  type="text"
-                  value={formData.farmLocation}
-                  onChange={handleChange}
-                  placeholder="e.g., Maharashtra, India"
-                  className="form-input"
-                />
-              </div>
+          <div className="signup-form-row-minimal">
+            <div className="signup-form-group-minimal">
+              <label htmlFor="farmLocation" className="signup-label-minimal">Farm Location</label>
+              <input
+                id="farmLocation"
+                name="farmLocation"
+                type="text"
+                value={formData.farmLocation}
+                onChange={handleChange}
+                placeholder="Farm Location"
+                className="signup-input-minimal"
+              />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="crops" className="form-label">Crops (comma-separated)</label>
-              <div className="input-wrapper">
-                <Leaf className="input-icon" />
-                <input
-                  id="crops"
-                  name="crops"
-                  type="text"
-                  value={formData.crops}
-                  onChange={handleChange}
-                  placeholder="e.g., Paddy, Wheat, Corn"
-                  className="form-input"
-                />
-              </div>
+            <div className="signup-form-group-minimal">
+              <label htmlFor="crops" className="signup-label-minimal">Crops (comma-separated)</label>
+              <input
+                id="crops"
+                name="crops"
+                type="text"
+                value={formData.crops}
+                onChange={handleChange}
+                placeholder="Crops"
+                className="signup-input-minimal"
+              />
             </div>
           </div>
 
-          {/* Language Selection */}
-          <div className="form-group">
-            <label htmlFor="language" className="form-label">Preferred Language</label>
+          <div className="signup-form-group-minimal">
+            <label htmlFor="language" className="signup-label-minimal">Preferred Language</label>
             <select
               id="language"
               name="language"
               value={formData.language}
               onChange={handleChange}
-              className="form-input form-select"
+              className="signup-input-minimal"
             >
               {languages.map(lang => (
                 <option key={lang.code} value={lang.code}>
@@ -310,31 +285,22 @@ const Signup = ({ onSignupSuccess, onSwitchToLogin, onClose, isModal }) => {
           <button
             type="submit"
             disabled={loading}
-            className="submit-button"
+            className="signup-button-minimal"
           >
-            {loading ? (
-              <>
-                <span className="spinner"></span>
-                Creating account...
-              </>
-            ) : (
-              <>
-                <UserPlus className="w-5 h-5" />
-                Create Account
-              </>
-            )}
+            {loading ? 'Creating account...' : 'Sign Up'}
           </button>
-        </form>
 
-        <div className="auth-footer">
-          <p>Already have an account?</p>
-          <button
-            onClick={onSwitchToLogin}
-            className="switch-button"
-          >
-            Login here
-          </button>
-        </div>
+          <div className="signup-footer-minimal">
+            <span>Already have an account? </span>
+            <button
+              type="button"
+              onClick={onSwitchToLogin}
+              className="signup-link-minimal"
+            >
+              Login
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
