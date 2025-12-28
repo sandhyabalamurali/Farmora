@@ -36,8 +36,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [pendingTasks, setPendingTasks] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState(null);
-  // Language defaults to user's preferred language (set after login)
-  const [currentLanguage, setCurrentLanguage] = useState(null);
+  // Language defaults to 'en', updated after login with user's preferred language
+  const [currentLanguage, setCurrentLanguage] = useState('en');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   
   // Chat history state
@@ -113,22 +113,27 @@ function App() {
     setCurrentLanguage('en');
   };
 
-  const handleLanguageChange = async (langCode) => {
+  const handleLanguageChange = (langCode) => {
+    // Change language immediately (don't wait for API)
     setCurrentLanguage(langCode);
     setShowLanguageDropdown(false);
     
-    // Update user profile with new language
-    try {
-      await api.updateProfile({ language: langCode });
-      const savedUser = localStorage.getItem('farmora_user');
-      if (savedUser) {
+    // Update localStorage immediately
+    const savedUser = localStorage.getItem('farmora_user');
+    if (savedUser) {
+      try {
         const userData = JSON.parse(savedUser);
         userData.language = langCode;
         localStorage.setItem('farmora_user', JSON.stringify(userData));
+      } catch (e) {
+        console.error('Failed to update local storage:', e);
       }
-    } catch (error) {
-      console.error('Failed to update language preference:', error);
     }
+    
+    // Update backend in background (don't block UI)
+    api.updateProfile({ language: langCode }).catch(error => {
+      console.error('Failed to update language preference on server:', error);
+    });
   };
 
   const handleSendMessage = async () => {
@@ -407,17 +412,22 @@ function App() {
     }
   };
 
-  // Get available languages (preferred language first, then English)
+  // Get available languages - show all languages, with preferred and English at top
   const getAvailableLanguages = () => {
     const preferredLang = user?.language || 'en';
-    // If preferred is English, just return English
+    
+    // If preferred is English, put English first then all others
     if (preferredLang === 'en') {
-      return LANGUAGES.filter(l => l.code === 'en');
+      const english = LANGUAGES.find(l => l.code === 'en');
+      const others = LANGUAGES.filter(l => l.code !== 'en');
+      return [english, ...others];
     }
-    // Otherwise return preferred language first, then English
+    
+    // Otherwise: preferred first, then English, then all others
     const preferred = LANGUAGES.find(l => l.code === preferredLang);
     const english = LANGUAGES.find(l => l.code === 'en');
-    return [preferred, english].filter(Boolean);
+    const others = LANGUAGES.filter(l => l.code !== preferredLang && l.code !== 'en');
+    return [preferred, english, ...others].filter(Boolean);
   };
 
   // Get current language display name
@@ -481,7 +491,7 @@ function App() {
 
       <div className="flex-1 flex flex-col">
         {/* Top Bar - Premium Design */}
-        <div className="h-14 bg-gray-900/80 backdrop-blur-sm border-b border-green-800/30 flex items-center justify-between px-4 md:px-6">
+        <div className="h-14 bg-gray-900/80 backdrop-blur-sm border-b border-green-800/30 flex items-center justify-between px-4 md:px-6 relative z-50">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -502,7 +512,10 @@ function App() {
             {/* Language Switcher */}
             <div className="relative">
               <button
-                onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowLanguageDropdown(!showLanguageDropdown);
+                }}
                 className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 hover:bg-green-900/40 rounded-lg border border-green-700/30 transition-colors"
                 data-testid="language-switcher-btn"
               >
@@ -512,17 +525,28 @@ function App() {
               
               {showLanguageDropdown && (
                 <>
-                  {/* Backdrop */}
+                  {/* Backdrop - higher z-index */}
                   <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowLanguageDropdown(false)}
+                    className="fixed inset-0" 
+                    style={{ zIndex: 9998 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowLanguageDropdown(false);
+                    }}
                   />
-                  <div className="absolute right-0 mt-2 w-48 bg-gray-900/95 backdrop-blur-sm border border-green-700/30 rounded-lg shadow-xl shadow-green-900/20 z-50 overflow-hidden">
-                    <div className="p-1">
+                  {/* Dropdown - highest z-index */}
+                  <div 
+                    className="absolute right-0 mt-2 w-48 bg-gray-900 backdrop-blur-sm border border-green-700/30 rounded-lg shadow-xl shadow-green-900/20 overflow-hidden"
+                    style={{ zIndex: 9999 }}
+                  >
+                    <div className="p-1 max-h-80 overflow-y-auto">
                       {getAvailableLanguages().map(lang => (
                         <button
                           key={lang.code}
-                          onClick={() => handleLanguageChange(lang.code)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLanguageChange(lang.code);
+                          }}
                           className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
                             effectiveLanguage === lang.code 
                               ? 'bg-green-500/20 text-green-300' 
