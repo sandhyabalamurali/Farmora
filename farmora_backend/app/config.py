@@ -2,9 +2,14 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from farmora_backend directory
-env_path = Path(__file__).parent.parent / '.env'
+# Load .env from project root directory (Farmora/.env)
+# Path: config.py -> app -> farmora_backend -> Farmora/.env
+env_path = Path(__file__).parent.parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
+
+# Debug: Print to verify .env is loaded correctly
+# print(f"Loading .env from: {env_path}")
+# print(f"MONGO_URL loaded: {os.getenv('MONGO_URL', 'NOT FOUND')[:30]}...")
 
 class Settings:
     PROJECT_NAME: str = "Farmora AI"
@@ -21,4 +26,5 @@ class Settings:
     # Model Configuration
     WHISPER_MODEL: str = os.getenv("WHISPER_MODEL", "whisper-large-v3-turbo")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemma-3-27b-it")
+    GEMINI_MULTI_MODEL: str = os.getenv("GEMINI_MULTI_MODEL", "models/gemini-3-flash-preview")
 settings = Settings()

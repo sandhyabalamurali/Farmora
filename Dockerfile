@@ -11,10 +11,10 @@ WORKDIR /app/frontend
 # Copy frontend package files
 COPY farmora-frontend/farmora-chatbot/package*.json ./
 
-# Install dependencies
-RUN npm ci --legacy-peer-deps
+# Install dependencies with clean slate (ignore package-lock for cross-platform compatibility)
+RUN rm -f package-lock.json && npm install --legacy-peer-deps
 
-# Copy frontend source
+# Copy frontend source (excluding node_modules via .dockerignore)
 COPY farmora-frontend/farmora-chatbot/ ./
 
 # Build for production
