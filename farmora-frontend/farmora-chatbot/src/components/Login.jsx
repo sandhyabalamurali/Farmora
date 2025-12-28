@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, X } from 'lucide-react';
 import api from '../services/api';
 import './Auth.css';
 
-const Login = ({ onLoginSuccess, onSwitchToSignup }) => {
+const Login = ({ onLoginSuccess, onSwitchToSignup, onClose, isModal }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,8 +26,13 @@ const Login = ({ onLoginSuccess, onSwitchToSignup }) => {
   };
 
   return (
-    <div className="auth-container">
+    <div className={`auth-container ${isModal ? 'auth-modal' : ''}`}>
       <div className="auth-card">
+        {isModal && (
+          <button className="auth-close-btn" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </button>
+        )}
         <div className="auth-header">
           <div className="auth-logo">🌾</div>
           <h1 className="auth-title">FarMora</h1>

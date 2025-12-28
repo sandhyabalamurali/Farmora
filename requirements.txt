@@ -16,3 +16,4 @@ PyJWT
 httpx
 python-multipart
 google-generativeai
+google-genai

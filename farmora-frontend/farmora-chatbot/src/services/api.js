@@ -1,11 +1,12 @@
 /**
  * API Service - Handles all backend communication
- * Base URL from environment variable
+ * Base URL from environment variable or relative path for production
  */
 
+// In production (Docker), use relative path; in development, use localhost
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL 
   ? `${import.meta.env.VITE_API_BASE_URL}/api` 
-  : 'http://localhost:8000/api';
+  : (import.meta.env.PROD ? '/api' : 'http://localhost:8000/api');
 
 class APIService {
   constructor() {

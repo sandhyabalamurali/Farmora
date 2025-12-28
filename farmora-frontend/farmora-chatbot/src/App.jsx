@@ -426,31 +426,39 @@ function App() {
     return lang?.name || 'English';
   };
 
-  // Auth screens
-  if (authState === 'landing') {
+  // Auth screens - Login and Signup as modals on landing page
+  if (authState === 'landing' || authState === 'login' || authState === 'signup') {
     return (
-      <LandingPage 
-        onLogin={() => setAuthState('login')}
-        onSignup={() => setAuthState('signup')}
-      />
-    );
-  }
-
-  if (authState === 'login') {
-    return (
-      <Login
-        onLoginSuccess={handleLoginSuccess}
-        onSwitchToSignup={() => setAuthState('signup')}
-      />
-    );
-  }
-
-  if (authState === 'signup') {
-    return (
-      <Signup
-        onSignupSuccess={handleSignupSuccess}
-        onSwitchToLogin={() => setAuthState('login')}
-      />
+      <>
+        <LandingPage 
+          onLogin={() => setAuthState('login')}
+          onSignup={() => setAuthState('signup')}
+        />
+        {authState === 'login' && (
+          <div className="auth-modal-overlay" onClick={() => setAuthState('landing')}>
+            <div onClick={(e) => e.stopPropagation()}>
+              <Login
+                onLoginSuccess={handleLoginSuccess}
+                onSwitchToSignup={() => setAuthState('signup')}
+                onClose={() => setAuthState('landing')}
+                isModal={true}
+              />
+            </div>
+          </div>
+        )}
+        {authState === 'signup' && (
+          <div className="auth-modal-overlay" onClick={() => setAuthState('landing')}>
+            <div onClick={(e) => e.stopPropagation()}>
+              <Signup
+                onSignupSuccess={handleSignupSuccess}
+                onSwitchToLogin={() => setAuthState('login')}
+                onClose={() => setAuthState('landing')}
+                isModal={true}
+              />
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
